@@ -91,6 +91,7 @@ func (c *CreateVM) submit() {
 	// cleared as soon as the library is done with it.
 	c.Password.Set("")
 	c.Confirm.Set("")
+	c.app.Say("creating the container (stretching the password takes a moment)...")
 	var code string
 	var err error
 	c.app.async(c.Busy, func() {

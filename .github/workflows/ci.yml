@@ -1,0 +1,100 @@
+name: ci
+
+# No `branches:` filter on pull_request, deliberately. A filtered trigger
+# reports "no checks" forever for any pull request not aimed at main.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (gofmt, vet, race, 100% coverage)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: gofmt
+        run: |
+          out=$(gofmt -l .)
+          if [ -n "$out" ]; then echo "$out"; exit 1; fi
+
+      - run: go vet ./...
+
+      # The three non-main packages: the library calls (vault), all the state
+      # and logic (viewmodel) and the widgets with their bindings (view).
+      # main.go only wires them to a window and hack/livecheck is a developer
+      # tool that needs a display; neither is measured.
+      - name: Test (race, coverage)
+        run: go test -race -coverprofile=cover.out ./internal/...
+
+      - name: Coverage is 100%
+        run: go run ./internal/tools/covgaps cover.out
+
+  # CGO is off everywhere: the macOS FIDO transport is purego, the windows are
+  # pure Go. Build the application for each desktop platform it supports.
+  build:
+    name: build (${{ matrix.goos }}/${{ matrix.goarch }}, CGO off)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {goos: linux, goarch: amd64}
+          - {goos: linux, goarch: arm64}
+          - {goos: darwin, goarch: arm64}
+          - {goos: darwin, goarch: amd64}
+          - {goos: windows, goarch: amd64}
+    env:
+      CGO_ENABLED: '0'
+      GOOS: ${{ matrix.goos }}
+      GOARCH: ${{ matrix.goarch }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go build -o /dev/null .
+
+  # The shared MVVM gate: go-widgets/mvvmlint as a `go vet` tool, failing on
+  # any direct widget-state mutation.
+  mvvm:
+    name: MVVM gate
+    uses: go-widgets/mvvmlint/.github/workflows/mvvmlint.yml@main
+
+  # The hand-drawn-UI gate: go-widgets/bricolint as a `go vet` tool, failing on
+  # any painter drawing primitive in application code.
+  bricolint:
+    name: hand-drawn-UI gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go install github.com/go-widgets/bricolint/cmd/bricolint@v0.1.0
+      - run: go vet -vettool="$(go env GOPATH)/bin/bricolint" ./...
+
+  govulncheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...

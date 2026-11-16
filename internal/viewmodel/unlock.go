@@ -66,6 +66,8 @@ func (u *UnlockVM) submit() {
 	u.Recovery.Set("")
 	if req.UseKey {
 		u.app.Say(KeyTouchNotice)
+	} else {
+		u.app.Say("unlocking (stretching the password takes a moment)...")
 	}
 	var sess Session
 	var err error
