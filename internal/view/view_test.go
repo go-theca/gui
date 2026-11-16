@@ -29,7 +29,7 @@ func (s *session) Import(string, func(int64, int64)) (int64, error) {
 func (s *session) Export(string, func(int64, int64)) (int64, error) {
 	return 0, nil
 }
-func (s *session) EnrollKey(context.Context, func() (string, error)) (int, error) {
+func (s *session) EnrollKey(context.Context, []byte, string, func() (string, error)) (int, error) {
 	return 1, nil
 }
 func (s *session) Close() error { s.closed = true; return nil }
@@ -161,7 +161,7 @@ func TestSecretsAreMasked(t *testing.T) {
 		viewmodel.ScreenHome:      {false},
 		viewmodel.ScreenCreate:    {false, false, true, true},
 		viewmodel.ScreenUnlock:    {true, true, true},
-		viewmodel.ScreenContainer: {false, false, true},
+		viewmodel.ScreenContainer: {false, false, true, true, true},
 	} {
 		app.Screen.Set(screen)
 		frame(v)

@@ -22,7 +22,7 @@ import (
 // The window's size, in logical points.
 const (
 	Width  = 640
-	Height = 580
+	Height = 660
 )
 
 // Layout, in pixels.
@@ -298,6 +298,9 @@ func (v *View) container() toolkit.Widget {
 	p.AddFixed(exp, rowH)
 
 	p.AddFixed(v.text("Export never overwrites a file; it holds the volume in the clear."), msgRowH+2)
+	p.AddFixed(v.text("To enroll a security key, present the password and/or the recovery code again:"), msgRowH+2)
+	p.AddFixed(row("Password:", v.field(c.EnrollPassword, "", maskRune)), rowH)
+	p.AddFixed(row("Recovery code:", v.field(c.EnrollRecovery, "", maskRune)), rowH)
 	p.AddFixed(v.pinRow(), rowH)
 	return p
 }

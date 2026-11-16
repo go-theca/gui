@@ -34,6 +34,11 @@ type ContainerVM struct {
 	ImportPath *mvvm.Observable[string]
 	ExportPath *mvvm.Observable[string]
 
+	// EnrollPassword and EnrollRecovery are the factors a security key is
+	// paired with, asked for again at the moment of enrolment.
+	EnrollPassword *mvvm.Observable[string]
+	EnrollRecovery *mvvm.Observable[string]
+
 	Verify    *mvvm.Command
 	Import    *mvvm.Command
 	Export    *mvvm.Command
@@ -54,6 +59,9 @@ func newContainerVM(a *App) *ContainerVM {
 		Busy:       mvvm.NewObservable(false),
 		ImportPath: mvvm.NewObservable(""),
 		ExportPath: mvvm.NewObservable(""),
+
+		EnrollPassword: mvvm.NewObservable(""),
+		EnrollRecovery: mvvm.NewObservable(""),
 	}
 	idle := func() bool { return !c.Busy.Get() }
 	withPath := func(p *mvvm.Observable[string]) func() bool {
@@ -62,7 +70,10 @@ func newContainerVM(a *App) *ContainerVM {
 	c.Verify = mvvm.NewCommand(c.verify, idle)
 	c.Import = mvvm.NewCommand(c.importFile, withPath(c.ImportPath))
 	c.Export = mvvm.NewCommand(c.exportFile, withPath(c.ExportPath))
-	c.EnrollKey = mvvm.NewCommand(c.enrollKey, idle)
+	c.EnrollKey = mvvm.NewCommand(c.enrollKey, func() bool {
+		return !c.Busy.Get() && (c.EnrollPassword.Get() != "" || strings.TrimSpace(c.EnrollRecovery.Get()) != "")
+	})
+	mvvm.BindCanExecute(c.EnrollKey, c.EnrollPassword, c.EnrollRecovery)
 	c.Close = mvvm.NewCommand(c.close, idle)
 	mvvm.BindCanExecute(c.Verify, c.Busy)
 	mvvm.BindCanExecute(c.Import, c.Busy, c.ImportPath)
@@ -152,10 +163,18 @@ func (c *ContainerVM) exportFile() {
 }
 
 func (c *ContainerVM) enrollKey() {
+	// The factors are presented again, now: unlock kept nothing derived from
+	// them. The entries are emptied at once; the byte copy is cleared once the
+	// library is done.
+	pw := []byte(c.EnrollPassword.Get())
+	rec := strings.TrimSpace(c.EnrollRecovery.Get())
+	c.EnrollPassword.Set("")
+	c.EnrollRecovery.Set("")
 	c.app.Say(EnrollNotice)
 	ctx := context.Background()
 	c.run("enrolling the security key...", func() (string, error) {
-		n, err := c.sess.EnrollKey(ctx, c.app.PIN.Ask(ctx))
+		n, err := c.sess.EnrollKey(ctx, pw, rec, c.app.PIN.Ask(ctx))
+		clear(pw)
 		return fmt.Sprintf("ok: the key is paired with %d factor(s)", n), err
 	})
 }
@@ -167,6 +186,8 @@ func (c *ContainerVM) close() {
 	c.sess = nil
 	c.ImportPath.Set("")
 	c.ExportPath.Set("")
+	c.EnrollPassword.Set("")
+	c.EnrollRecovery.Set("")
 	c.Activity.Set("")
 	c.app.show(ScreenHome)
 	if err != nil {

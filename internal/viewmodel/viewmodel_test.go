@@ -26,6 +26,8 @@ type fakeSession struct {
 	verifyErr, importErr, exportErr, enrollErr error
 	closeErr                                   error
 	enrolled                                   int
+	enrollPW, enrollRec                        string
+	enrollRaw                                  []byte
 
 	imported, exported string
 	closed             int
@@ -47,7 +49,8 @@ func (s *fakeSession) Export(path string, progress func(done, total int64)) (int
 	progress(4096, 4096)
 	return 4096, s.exportErr
 }
-func (s *fakeSession) EnrollKey(ctx context.Context, pin func() (string, error)) (int, error) {
+func (s *fakeSession) EnrollKey(ctx context.Context, pw []byte, rec string, pin func() (string, error)) (int, error) {
+	s.enrollPW, s.enrollRaw, s.enrollRec = string(pw), pw, rec
 	if s.enrollErr != nil {
 		return 0, s.enrollErr
 	}
@@ -591,7 +594,19 @@ func TestEnrollKey(t *testing.T) {
 	waitFor(t, q, func() bool { return a.Screen.Get() == ScreenContainer })
 
 	c := a.Container
+	if c.EnrollKey.CanExecute() {
+		t.Fatal("enrolment is offered without the password or the recovery code")
+	}
+	c.EnrollRecovery.Set("  ")
+	if c.EnrollKey.CanExecute() {
+		t.Fatal("a blank recovery code counts")
+	}
+	c.EnrollPassword.Set("hunter2")
+	c.EnrollRecovery.Set(" ABCD ")
 	c.EnrollKey.Execute()
+	if c.EnrollPassword.Get() != "" || c.EnrollRecovery.Get() != "" {
+		t.Error("the entries still hold the secrets after enrolment started")
+	}
 	if flat(a) != EnrollNotice {
 		t.Errorf("messages = %q", flat(a))
 	}
@@ -602,8 +617,12 @@ func TestEnrollKey(t *testing.T) {
 	if sess.enrolled != 1 || c.Activity.Get() != "ok: the key is paired with 2 factor(s)" {
 		t.Errorf("enrolled %d, activity %q", sess.enrolled, c.Activity.Get())
 	}
+	if sess.enrollPW != "hunter2" || sess.enrollRec != "ABCD" || !allZero(sess.enrollRaw) {
+		t.Errorf("library got %q, %q; password bytes wiped: %v", sess.enrollPW, sess.enrollRec, allZero(sess.enrollRaw))
+	}
 
 	sess.enrollErr = errors.New("fido2: the key was not touched in time")
+	c.EnrollPassword.Set("hunter2")
 	c.EnrollKey.Execute()
 	waitFor(t, q, func() bool { return !c.Busy.Get() })
 	if got := messages(a); got != "error: fido2: the key was not touched in time" {

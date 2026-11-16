@@ -46,7 +46,7 @@ type Session interface {
 	Verify() (uint64, error)
 	Import(path string, progress func(done, total int64)) (int64, error)
 	Export(path string, progress func(done, total int64)) (int64, error)
-	EnrollKey(ctx context.Context, pin func() (string, error)) (int, error)
+	EnrollKey(ctx context.Context, password []byte, recovery string, pin func() (string, error)) (int, error)
 	Close() error
 }
 

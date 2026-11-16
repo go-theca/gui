@@ -220,27 +220,9 @@ func (s *Service) unlock(ctx context.Context, f *os.File, req UnlockRequest) (*S
 	if err != nil {
 		return nil, err
 	}
-	sess := &Session{c: c, f: f, openKey: s.OpenKey}
-	// The partner factors, derived from the same secrets that opened it: they
-	// are what enrolling a key pairs it with. They are key material, not the
-	// secrets, and are wiped when the session closes.
-	if len(req.Password) > 0 {
-		pw, err := passwordFactor(u.Hint, req.Password, salt)
-		if err != nil {
-			sess.Close()
-			return nil, err
-		}
-		sess.partners = append(sess.partners, pw)
-	}
-	if req.Recovery != "" {
-		rc, err := recoveryFactor(req.Recovery)
-		if err != nil {
-			sess.Close()
-			return nil, err
-		}
-		sess.partners = append(sess.partners, rc)
-	}
-	return sess, nil
+	// Nothing is kept but the open container (and the salt, which is public):
+	// the key is derived once, by Open.
+	return &Session{c: c, f: f, openKey: s.OpenKey, hint: s.Hint, salt: salt}, nil
 }
 
 // volume is what a Session needs of an open container; *theca.Container is
@@ -258,10 +240,11 @@ type volume interface {
 
 // Session is an unlocked container.
 type Session struct {
-	c        volume
-	f        *os.File
-	openKey  KeyOpener
-	partners []theca.Factor
+	c       volume
+	f       *os.File
+	openKey KeyOpener
+	hint    int
+	salt    []byte
 }
 
 // Info describes the container.
@@ -366,29 +349,47 @@ func (c *countWriter) Write(p []byte) (int, error) {
 	return n, err
 }
 
-// EnrollKey pairs the attached security key with the password and the recovery
-// code that opened this session, and returns how many factors it is paired
-// with. The key is touched twice: to register, then to confirm.
-func (s *Session) EnrollKey(ctx context.Context, pin func() (string, error)) (int, error) {
-	if len(s.partners) == 0 {
-		return 0, errors.New("enrolling a key needs the password or the recovery code: unlock with one")
+// EnrollKey pairs the attached security key with the password and/or the
+// recovery code presented NOW (the user is asked again: nothing derived from
+// them was kept at unlock), and returns how many factors it is paired with.
+// The partner factors are derived here and wiped before returning. The key is
+// touched twice: to register, then to confirm. password is wiped by the caller.
+func (s *Session) EnrollKey(ctx context.Context, password []byte, recovery string, pin func() (string, error)) (int, error) {
+	var partners []theca.Factor
+	defer func() {
+		for i := range partners {
+			partners[i].Zeroize()
+		}
+	}()
+	if len(password) > 0 {
+		pw, err := passwordFactor(s.hint, password, s.salt)
+		if err != nil {
+			return 0, err
+		}
+		partners = append(partners, pw)
+	}
+	if recovery != "" {
+		rc, err := recoveryFactor(recovery)
+		if err != nil {
+			return 0, err
+		}
+		partners = append(partners, rc)
+	}
+	if len(partners) == 0 {
+		return 0, errors.New("enrolling a key needs the password or the recovery code")
 	}
 	dev, err := s.openKey(ctx, pin)
 	if err != nil {
 		return 0, err
 	}
 	defer dev.Close()
-	if err := s.c.EnrollFIDO2(ctx, dev, s.partners...); err != nil {
+	if err := s.c.EnrollFIDO2(ctx, dev, partners...); err != nil {
 		return 0, err
 	}
-	return len(s.partners), nil
+	return len(partners), nil
 }
 
-// Close commits, wipes the keys and releases the file.
+// Close commits and releases the file.
 func (s *Session) Close() error {
-	for i := range s.partners {
-		s.partners[i].Zeroize()
-	}
-	s.partners = nil
 	return errors.Join(s.c.Close(), s.f.Close())
 }

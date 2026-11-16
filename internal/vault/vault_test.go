@@ -143,20 +143,14 @@ func TestOpenAndInfo(t *testing.T) {
 	if n, err := sess.Verify(); err != nil || n == 0 {
 		t.Errorf("Verify = %d, %v", n, err)
 	}
-	if len(sess.partners) != 1 {
-		t.Errorf("partners = %d, want 1", len(sess.partners))
-	}
 	if err := sess.Close(); err != nil {
 		t.Fatal(err)
 	}
 
-	// The recovery code alone opens a 1-of-n container, and is then the one partner.
+	// The recovery code alone opens a 1-of-n container.
 	sess, err = s.Open(context.Background(), UnlockRequest{Path: path, Recovery: code})
 	if err != nil {
 		t.Fatal(err)
-	}
-	if len(sess.partners) != 1 {
-		t.Errorf("partners = %d, want 1", len(sess.partners))
 	}
 	sess.Close()
 }
@@ -172,9 +166,6 @@ func TestOpenTwoOfThree(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer sess.Close()
-	if len(sess.partners) != 2 {
-		t.Errorf("partners = %d, want 2", len(sess.partners))
-	}
 }
 
 func TestOpenRefusals(t *testing.T) {
@@ -211,23 +202,6 @@ func TestOpenWithKeyReleasesIt(t *testing.T) {
 	defer sess.Close()
 	if !k.closed {
 		t.Error("the key was not released after unlocking")
-	}
-}
-
-func TestFactorFailuresCloseTheSession(t *testing.T) {
-	path, code := newContainer(t, PolicyAny)
-	boom := errors.New("kdf failed")
-	pf, rf := passwordFactor, recoveryFactor
-	defer func() { passwordFactor, recoveryFactor = pf, rf }()
-
-	passwordFactor = func(int, []byte, []byte) (theca.Factor, error) { return theca.Factor{}, boom }
-	if _, err := (&Service{Hint: 1}).Open(context.Background(), UnlockRequest{Path: path, Password: []byte("pw")}); !errors.Is(err, boom) {
-		t.Errorf("password factor: %v", err)
-	}
-	passwordFactor = pf
-	recoveryFactor = func(string) (theca.Factor, error) { return theca.Factor{}, boom }
-	if _, err := (&Service{Hint: 1}).Open(context.Background(), UnlockRequest{Path: path, Recovery: code}); !errors.Is(err, boom) {
-		t.Errorf("recovery factor: %v", err)
 	}
 }
 
@@ -391,12 +365,12 @@ func TestEnrollKey(t *testing.T) {
 	s := &Service{Hint: 1, OpenKey: opener(k)}
 	ctx := context.Background()
 
-	sess, err := s.Open(ctx, UnlockRequest{Path: path, Password: []byte("pw"), Recovery: code})
+	sess, err := s.Open(ctx, UnlockRequest{Path: path, Password: []byte("pw")})
 	if err != nil {
 		t.Fatal(err)
 	}
 	before := sess.Info().SlotsUsed
-	n, err := sess.EnrollKey(ctx, nil)
+	n, err := sess.EnrollKey(ctx, []byte("pw"), code, nil)
 	if err != nil || n != 2 || k.enrolled != 1 || !k.closed {
 		t.Fatalf("EnrollKey = %d, %v (enrolled %d, closed %v)", n, err, k.enrolled, k.closed)
 	}
@@ -419,18 +393,51 @@ func TestEnrollKey(t *testing.T) {
 
 func TestEnrollKeyRefusals(t *testing.T) {
 	ctx := context.Background()
-	// No partner factor: nothing to pair the key with.
-	if _, err := (&Session{openKey: opener(&fakeKey{})}).EnrollKey(ctx, nil); err == nil {
+	salt := make([]byte, saltSize)
+	// No password and no recovery code: nothing to pair the key with.
+	if _, err := (&Session{hint: 1, salt: salt, openKey: opener(&fakeKey{})}).EnrollKey(ctx, nil, "", nil); err == nil {
 		t.Error("enrolled with no partner")
 	}
-	one := []theca.Factor{theca.FIDO2Factor(make([]byte, 32))}
-	if _, err := (&Session{partners: one, openKey: noKey}).EnrollKey(ctx, nil); !errors.Is(err, errNoKey) {
+	if _, err := (&Session{hint: 1, salt: salt, openKey: noKey}).EnrollKey(ctx, []byte("pw"), "", nil); !errors.Is(err, errNoKey) {
 		t.Errorf("no key: %v", err)
 	}
 	boom := errors.New("refused")
-	sess := &Session{partners: one, openKey: opener(&fakeKey{}), c: &brokenVolume{enrollErr: boom}}
-	if _, err := sess.EnrollKey(ctx, nil); !errors.Is(err, boom) {
+	sess := &Session{hint: 1, salt: salt, openKey: opener(&fakeKey{}), c: &brokenVolume{enrollErr: boom}}
+	if _, err := sess.EnrollKey(ctx, []byte("pw"), "", nil); !errors.Is(err, boom) {
 		t.Errorf("enroll failure: %v", err)
+	}
+}
+
+func TestEnrollKeyFactorFailures(t *testing.T) {
+	boom := errors.New("kdf failed")
+	pf, rf := passwordFactor, recoveryFactor
+	defer func() { passwordFactor, recoveryFactor = pf, rf }()
+	sess := &Session{openKey: opener(&fakeKey{})}
+
+	passwordFactor = func(int, []byte, []byte) (theca.Factor, error) { return theca.Factor{}, boom }
+	if _, err := sess.EnrollKey(context.Background(), []byte("pw"), "", nil); !errors.Is(err, boom) {
+		t.Errorf("password factor: %v", err)
+	}
+	recoveryFactor = func(string) (theca.Factor, error) { return theca.Factor{}, boom }
+	if _, err := sess.EnrollKey(context.Background(), nil, "code", nil); !errors.Is(err, boom) {
+		t.Errorf("recovery factor: %v", err)
+	}
+}
+
+func TestUnlockKeepsNothingButTheContainer(t *testing.T) {
+	path, _ := newContainer(t, PolicyAny)
+	calls := 0
+	pf, rf := passwordFactor, recoveryFactor
+	defer func() { passwordFactor, recoveryFactor = pf, rf }()
+	passwordFactor = func(h int, p, s []byte) (theca.Factor, error) { calls++; return pf(h, p, s) }
+	recoveryFactor = func(c string) (theca.Factor, error) { calls++; return rf(c) }
+	sess, err := (&Service{Hint: 1}).Open(context.Background(), UnlockRequest{Path: path, Password: []byte("pw")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sess.Close()
+	if calls != 0 {
+		t.Errorf("unlock derived %d extra factor(s)", calls)
 	}
 }
 

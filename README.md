@@ -37,7 +37,10 @@ macOS, an X11 or Wayland window on Linux, a Win32 window on Windows.
   offset 0 (a file larger than the volume is refused before anything is written);
   *Export* the whole decrypted volume to a **new** file (created readable by its
   owner only, never over an existing file, and removed again if the copy fails);
-  *Enroll security key*; *Close container*.
+  *Enroll security key*, which asks for the password and/or the recovery code
+  **again**, derives the partner factors then, and wipes them when done (unlock
+  keeps nothing but the open container, and derives the key once); *Close
+  container*.
 - **Every error is shown**, as the library words it, in the status area at the
   bottom. So is the notice `theca` prints at every unlock: **this container has
   no rollback counter: an older copy of it would be accepted.**
