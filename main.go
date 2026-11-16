@@ -2,7 +2,7 @@
 
 // Command theca-gui is a desktop GUI for Theca encrypted containers
 // (github.com/go-theca/theca): create, unlock, inspect, verify, import,
-// export, and enroll a FIDO2 security key.
+// export, enroll a FIDO2 security key, and share the exFAT filesystem inside.
 //
 // It is a go-widgets application: the state lives in internal/viewmodel
 // (go-widgets/mvvm), the widgets in internal/view (go-widgets/toolkit, bound
@@ -62,5 +62,8 @@ func run() error {
 	app := viewmodel.New(viewmodel.Backend{V: vault.New()}, q, nil)
 	v := view.New(app, q)
 	defer v.Close()
+	// Last deferred, first run: the share stops and the container closes
+	// before the view and the window go.
+	defer app.Shutdown()
 	return w.Run(v)
 }

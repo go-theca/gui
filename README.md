@@ -4,13 +4,17 @@ A portable desktop GUI for [Theca](https://github.com/go-theca/theca) encrypted
 containers, built with [go-widgets](https://github.com/go-widgets).
 
 It does what the `theca` command does, in a window: create a container, unlock
-it, look at it, verify it, copy a file in and out, and pair a FIDO2 security key
-with it. It does not mount anything: Theca is a library over a file, and so is
-this.
+it, look at it, verify it, copy a file in and out, pair a FIDO2 security key
+with it, and **share** the exFAT filesystem inside it, mounted in the file
+manager.
 
 ## Run it
 
-From a clone (there is no release yet):
+```sh
+go install github.com/go-theca/gui@latest   # the binary is named gui
+```
+
+Or from a clone:
 
 ```sh
 go run .
@@ -41,6 +45,19 @@ macOS, an X11 or Wayland window on Linux, a Win32 window on Windows.
   **again**, derives the partner factors then, and wipes them when done (unlock
   keeps nothing but the open container, and derives the key once); *Close
   container*.
+- **Share.** On the Container screen, *Share* serves the exFAT filesystem inside
+  the container (made with `theca create --fs exfat`) over SMB on a loopback
+  address and mounts it in the file manager with no password dialog
+  ([go-theca/theca](https://github.com/go-theca/theca) `share`, v0.3.0). The
+  screen shows where it is shared and mounted, and *Open in file manager* shows
+  the volume. The button then reads *Stop sharing*. The share stops, unmounting
+  first, when you press it, when you **close the container** and when you close
+  the window: always before the container is committed and closed. A failed
+  commit or server ends the share and says why. **The share's account password
+  is never shown**: the library hands it to the OS mount service and nowhere
+  else. A container with no exFAT inside is refused with a message, not a crash.
+  Containers created by the GUI are raw volumes, so they cannot be shared yet
+  (see below).
 - **Every error is shown**, as the library words it, in the status area at the
   bottom. So is the notice `theca` prints at every unlock: **this container has
   no rollback counter: an older copy of it would be accepted.**
@@ -75,6 +92,11 @@ trust.
 - **Verify has no progress bar of its own**: the library verifies in one call and
   reports nothing until it is done, so the bar fills when it finishes. Import and
   export do report progress.
+- **Share needs an exFAT volume**, and *Create new container* makes a raw one: make
+  the container with `theca create --fs exfat` to share it. Mounting works on
+  macOS (measured); Linux (gvfs) and Windows (`MSFT_SmbMapping`) go through the
+  same library but have not been run from this GUI. *Open in file manager* runs
+  `open`, `xdg-open` or `explorer`.
 - There is no file picker yet: paths are typed (or pasted).
 - No rollback counter: there is no hardware counter support in the GUI, and no
   *accept rollback* option.
@@ -108,6 +130,13 @@ repository). It does not touch a security key.
 
 ```sh
 go run ./hack/livecheck -dir /some/scratch/directory
+```
+
+The share is proven against a real container and a real mount by a test that
+runs only when asked (it mounts a volume on the machine, so CI skips it):
+
+```sh
+THECA_GUI_LIVE=1 go test -count=1 -run TestLiveShare -v ./internal/viewmodel
 ```
 
 ## License

@@ -22,7 +22,7 @@ import (
 // The window's size, in logical points.
 const (
 	Width  = 640
-	Height = 660
+	Height = 740
 )
 
 // Layout, in pixels.
@@ -157,6 +157,14 @@ func (v *View) button(label string, cmd *mvvm.Command) *toolkit.Button {
 	return b
 }
 
+// toggle is a button whose text follows an observable (it says what a click
+// will do), and that runs a command.
+func (v *View) toggle(label *mvvm.Observable[string], cmd *mvvm.Command) *toolkit.Button {
+	b := v.button(label.Get(), cmd)
+	v.unbind = append(v.unbind, mvvm.BindTwoWay(label, b.Label(), v.touch))
+	return b
+}
+
 // row is a label and a widget that takes the rest of the width.
 func row(label string, w toolkit.Widget) *toolkit.HBox {
 	h := toolkit.NewHBox()
@@ -279,6 +287,13 @@ func (v *View) container() toolkit.Widget {
 		v.button("Enroll security key", c.EnrollKey),
 		v.button("Close container", c.Close),
 	), buttonH)
+
+	// The share: a toggle that starts and stops it, and a button that shows
+	// the mounted volume in the file manager. The password is never shown.
+	sh := c.Share
+	p.AddFixed(buttons(v.toggle(sh.Label, sh.Toggle), v.button("Open in file manager", sh.Open)), buttonH)
+	p.AddFixed(row("Shared at:", v.shown(sh.URL)), msgRowH+2)
+	p.AddFixed(row("Mounted at:", v.shown(sh.MountPath)), msgRowH+2)
 
 	bar := toolkit.NewProgressBar()
 	v.unbind = append(v.unbind, mvvmtk.BindProgress(bar, c.Progress, v.touch))

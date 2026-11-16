@@ -31,6 +31,11 @@ type fakeSession struct {
 
 	imported, exported string
 	closed             int
+
+	sh         *fakeShare
+	shareErr   error
+	shareCalls int
+	events     *[]string // what was stopped and closed, in order
 }
 
 func (s *fakeSession) Info() vault.Info { return s.info }
@@ -64,7 +69,20 @@ func (s *fakeSession) EnrollKey(ctx context.Context, pw []byte, rec string, pin 
 	s.enrolled++
 	return 2, nil
 }
-func (s *fakeSession) Close() error { s.closed++; return s.closeErr }
+func (s *fakeSession) Close() error {
+	s.closed++
+	if s.events != nil {
+		*s.events = append(*s.events, "close")
+	}
+	return s.closeErr
+}
+func (s *fakeSession) Share(context.Context) (vault.Share, error) {
+	s.shareCalls++
+	if s.shareErr != nil {
+		return nil, s.shareErr
+	}
+	return s.sh, nil
+}
 
 type fakeService struct {
 	createReq vault.CreateRequest

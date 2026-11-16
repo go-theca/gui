@@ -21,6 +21,7 @@ import (
 
 	"github.com/go-theca/theca"
 	"github.com/go-theca/theca/fido2"
+	"github.com/go-theca/theca/share"
 )
 
 // RollbackNotice is the note the theca command prints at every unlock and at
@@ -222,7 +223,7 @@ func (s *Service) unlock(ctx context.Context, f *os.File, req UnlockRequest) (*S
 	}
 	// Nothing is kept but the open container (and the salt, which is public):
 	// the key is derived once, by Open.
-	return &Session{c: c, f: f, openKey: s.OpenKey, hint: s.Hint, salt: salt}, nil
+	return &Session{c: c, f: f, openKey: s.OpenKey, hint: s.Hint, salt: salt, shareOpts: shareOptions}, nil
 }
 
 // volume is what a Session needs of an open container; *theca.Container is
@@ -245,6 +246,8 @@ type Session struct {
 	openKey KeyOpener
 	hint    int
 	salt    []byte
+	// shareOpts is what Share asks of the library.
+	shareOpts share.Options
 }
 
 // Info describes the container.

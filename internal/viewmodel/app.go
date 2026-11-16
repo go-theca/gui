@@ -47,6 +47,7 @@ type Session interface {
 	Import(path string, progress func(done, total int64)) (int64, error)
 	Export(path string, progress func(done, total int64)) (int64, error)
 	EnrollKey(ctx context.Context, password []byte, recovery string, pin func() (string, error)) (int, error)
+	Share(ctx context.Context) (vault.Share, error)
 	Close() error
 }
 
@@ -123,6 +124,11 @@ func New(svc Service, q *mvvm.Queue, spawn func(func())) *App {
 	mvvm.BindCanExecute(a.GoUnlock, a.Path)
 	return a
 }
+
+// Shutdown is for the window closing: it stops the share and closes the
+// container, in that order, if one is open. The host calls it once, on the UI
+// goroutine, before the window goes away.
+func (a *App) Shutdown() { a.Container.shutdown() }
 
 // show shows a screen, clearing the status area of the previous one.
 func (a *App) show(screen string) {
