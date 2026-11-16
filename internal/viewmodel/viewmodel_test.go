@@ -636,7 +636,7 @@ func TestClose(t *testing.T) {
 // --- Backend ----------------------------------------------------------------
 
 func TestBackend(t *testing.T) {
-	b := Backend{V: vault.New()}
+	b := Backend{V: &vault.Service{Hint: 1}}
 	path := filepath.Join(t.TempDir(), "c.theca")
 	code, err := b.Create(vault.CreateRequest{Path: path, Size: "64K", Password: []byte("pw")})
 	if err != nil || code == "" {

@@ -96,6 +96,12 @@ func keyOrError(d *fido2.Device, err error) (Key, error) {
 
 // Service creates and opens containers.
 type Service struct {
+	// Hint is the Argon2id profile the password is stretched with (DESIGN 6.1):
+	// 0 is the theca command's default, and what a container made by it uses
+	// (2 GiB of memory); 1 is RFC 9106's second option (64 MiB). A container
+	// is opened with the profile it was made with, so the GUI keeps 0 to agree
+	// with the command; tests use 1 to stay light.
+	Hint int
 	// OpenKey opens the security key; tests replace it.
 	OpenKey KeyOpener
 }
@@ -159,6 +165,7 @@ func (s *Service) Create(req CreateRequest) (string, error) {
 	}
 	c, code, err := createContainer(theca.FileBacking{File: f}, theca.CreateOptions{
 		Sectors:  n / SectorSize,
+		Hint:     s.Hint,
 		Password: req.Password,
 		Policy:   pol,
 	})
@@ -200,7 +207,7 @@ func (s *Service) unlock(ctx context.Context, f *os.File, req UnlockRequest) (*S
 	if _, err := f.ReadAt(salt, 0); err != nil {
 		return nil, fmt.Errorf("%s: not a container: %w", req.Path, err)
 	}
-	u := theca.Unlock{Password: req.Password, Recovery: req.Recovery}
+	u := theca.Unlock{Hint: s.Hint, Password: req.Password, Recovery: req.Recovery}
 	if req.UseKey {
 		dev, err := s.OpenKey(ctx, req.PIN)
 		if err != nil {

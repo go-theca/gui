@@ -52,7 +52,7 @@ func noKey(context.Context, func() (string, error)) (Key, error) { return nil, e
 func newContainer(t *testing.T, pol Policy) (string, string) {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "c.theca")
-	code, err := (&Service{}).Create(CreateRequest{Path: path, Size: "64K", Policy: pol, Password: []byte("pw")})
+	code, err := (&Service{Hint: 1}).Create(CreateRequest{Path: path, Size: "64K", Policy: pol, Password: []byte("pw")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +84,7 @@ func TestParseSize(t *testing.T) {
 
 func TestCreateRefusals(t *testing.T) {
 	dir := t.TempDir()
-	s := &Service{}
+	s := &Service{Hint: 1}
 	for name, req := range map[string]CreateRequest{
 		"bad size":       {Path: filepath.Join(dir, "a"), Size: "lots", Password: []byte("x")},
 		"zero size":      {Path: filepath.Join(dir, "b"), Size: "0", Password: []byte("x")},
@@ -106,7 +106,7 @@ func TestFailedCreationLeavesNothingBehind(t *testing.T) {
 		return nil, "", boom
 	}
 	path := filepath.Join(t.TempDir(), "f")
-	if _, err := (&Service{}).Create(CreateRequest{Path: path, Size: "64K", Password: []byte("x")}); !errors.Is(err, boom) {
+	if _, err := (&Service{Hint: 1}).Create(CreateRequest{Path: path, Size: "64K", Password: []byte("x")}); !errors.Is(err, boom) {
 		t.Fatalf("err = %v", err)
 	}
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
@@ -116,7 +116,7 @@ func TestFailedCreationLeavesNothingBehind(t *testing.T) {
 
 func TestCreateNeverOverwrites(t *testing.T) {
 	path, _ := newContainer(t, PolicyAny)
-	if _, err := (&Service{}).Create(CreateRequest{Path: path, Size: "64K", Password: []byte("x")}); !errors.Is(err, os.ErrExist) {
+	if _, err := (&Service{Hint: 1}).Create(CreateRequest{Path: path, Size: "64K", Password: []byte("x")}); !errors.Is(err, os.ErrExist) {
 		t.Fatalf("err = %v, want it to refuse an existing file", err)
 	}
 }
@@ -130,7 +130,7 @@ func TestCreateReturnsCodeOnce(t *testing.T) {
 
 func TestOpenAndInfo(t *testing.T) {
 	path, code := newContainer(t, PolicyAny)
-	s := &Service{OpenKey: opener(&fakeKey{})}
+	s := &Service{Hint: 1, OpenKey: opener(&fakeKey{})}
 
 	sess, err := s.Open(context.Background(), UnlockRequest{Path: path, Password: []byte("pw")})
 	if err != nil {
@@ -163,7 +163,7 @@ func TestOpenAndInfo(t *testing.T) {
 
 func TestOpenTwoOfThree(t *testing.T) {
 	path, code := newContainer(t, PolicyTwoOfThree)
-	s := &Service{OpenKey: opener(&fakeKey{})}
+	s := &Service{Hint: 1, OpenKey: opener(&fakeKey{})}
 	if _, err := s.Open(context.Background(), UnlockRequest{Path: path, Password: []byte("pw")}); !errors.Is(err, theca.ErrNoMatch) {
 		t.Fatalf("password alone: err = %v, want ErrNoMatch", err)
 	}
@@ -180,7 +180,7 @@ func TestOpenTwoOfThree(t *testing.T) {
 func TestOpenRefusals(t *testing.T) {
 	path, _ := newContainer(t, PolicyAny)
 	k := &fakeKey{}
-	s := &Service{OpenKey: opener(k)}
+	s := &Service{Hint: 1, OpenKey: opener(k)}
 	ctx := context.Background()
 
 	if _, err := s.Open(ctx, UnlockRequest{Path: path + ".none", Password: []byte("pw")}); !errors.Is(err, os.ErrNotExist) {
@@ -196,7 +196,7 @@ func TestOpenRefusals(t *testing.T) {
 	if _, err := s.Open(ctx, UnlockRequest{Path: path, Password: []byte("wrong")}); !errors.Is(err, theca.ErrNoMatch) {
 		t.Errorf("wrong password: %v", err)
 	}
-	if _, err := (&Service{OpenKey: noKey}).Open(ctx, UnlockRequest{Path: path, Password: []byte("pw"), UseKey: true}); !errors.Is(err, errNoKey) {
+	if _, err := (&Service{Hint: 1, OpenKey: noKey}).Open(ctx, UnlockRequest{Path: path, Password: []byte("pw"), UseKey: true}); !errors.Is(err, errNoKey) {
 		t.Errorf("no key: %v", err)
 	}
 }
@@ -204,7 +204,7 @@ func TestOpenRefusals(t *testing.T) {
 func TestOpenWithKeyReleasesIt(t *testing.T) {
 	path, _ := newContainer(t, PolicyAny)
 	k := &fakeKey{}
-	sess, err := (&Service{OpenKey: opener(k)}).Open(context.Background(), UnlockRequest{Path: path, Password: []byte("pw"), UseKey: true})
+	sess, err := (&Service{Hint: 1, OpenKey: opener(k)}).Open(context.Background(), UnlockRequest{Path: path, Password: []byte("pw"), UseKey: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -221,19 +221,19 @@ func TestFactorFailuresCloseTheSession(t *testing.T) {
 	defer func() { passwordFactor, recoveryFactor = pf, rf }()
 
 	passwordFactor = func(int, []byte, []byte) (theca.Factor, error) { return theca.Factor{}, boom }
-	if _, err := (&Service{}).Open(context.Background(), UnlockRequest{Path: path, Password: []byte("pw")}); !errors.Is(err, boom) {
+	if _, err := (&Service{Hint: 1}).Open(context.Background(), UnlockRequest{Path: path, Password: []byte("pw")}); !errors.Is(err, boom) {
 		t.Errorf("password factor: %v", err)
 	}
 	passwordFactor = pf
 	recoveryFactor = func(string) (theca.Factor, error) { return theca.Factor{}, boom }
-	if _, err := (&Service{}).Open(context.Background(), UnlockRequest{Path: path, Recovery: code}); !errors.Is(err, boom) {
+	if _, err := (&Service{Hint: 1}).Open(context.Background(), UnlockRequest{Path: path, Recovery: code}); !errors.Is(err, boom) {
 		t.Errorf("recovery factor: %v", err)
 	}
 }
 
 func TestImportExportRoundTrip(t *testing.T) {
 	path, _ := newContainer(t, PolicyAny)
-	sess, err := (&Service{}).Open(context.Background(), UnlockRequest{Path: path, Password: []byte("pw")})
+	sess, err := (&Service{Hint: 1}).Open(context.Background(), UnlockRequest{Path: path, Password: []byte("pw")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -287,7 +287,7 @@ func TestImportExportRoundTrip(t *testing.T) {
 
 func TestImportRefusals(t *testing.T) {
 	path, _ := newContainer(t, PolicyAny)
-	sess, err := (&Service{}).Open(context.Background(), UnlockRequest{Path: path, Password: []byte("pw")})
+	sess, err := (&Service{Hint: 1}).Open(context.Background(), UnlockRequest{Path: path, Password: []byte("pw")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -311,7 +311,7 @@ func TestImportRefusals(t *testing.T) {
 
 func TestExportRefusesAMissingDirectory(t *testing.T) {
 	path, _ := newContainer(t, PolicyAny)
-	sess, err := (&Service{}).Open(context.Background(), UnlockRequest{Path: path, Password: []byte("pw")})
+	sess, err := (&Service{Hint: 1}).Open(context.Background(), UnlockRequest{Path: path, Password: []byte("pw")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -388,7 +388,7 @@ func TestSyncFailureIsReported(t *testing.T) {
 func TestEnrollKey(t *testing.T) {
 	path, code := newContainer(t, PolicyAny)
 	k := &fakeKey{}
-	s := &Service{OpenKey: opener(k)}
+	s := &Service{Hint: 1, OpenKey: opener(k)}
 	ctx := context.Background()
 
 	sess, err := s.Open(ctx, UnlockRequest{Path: path, Password: []byte("pw"), Recovery: code})
