@@ -4,7 +4,7 @@ go 1.27.4
 
 require (
 	github.com/go-filesystems/exfat v0.7.0
-	github.com/go-theca/theca v0.3.0
+	github.com/go-theca/theca v0.4.0
 	github.com/go-widgets/mvvm v0.15.0
 	github.com/go-widgets/mvvmtk v0.15.0
 	github.com/go-widgets/painter v0.17.1

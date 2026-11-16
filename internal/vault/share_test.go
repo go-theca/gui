@@ -22,7 +22,11 @@ func openForShare(t *testing.T, withFS bool) *Session {
 	t.Helper()
 	// 4 MiB is about the least exFAT takes.
 	path := filepath.Join(t.TempDir(), "c.theca")
-	if _, err := (&Service{Hint: 1}).Create(CreateRequest{Path: path, Size: "4M", Password: []byte("pw")}); err != nil {
+	fs := FSRaw
+	if withFS {
+		fs = FSExFAT // made by Create itself, as the GUI does
+	}
+	if _, err := (&Service{Hint: 1}).Create(CreateRequest{Path: path, Size: "4M", FS: fs, Password: []byte("pw")}); err != nil {
 		t.Fatal(err)
 	}
 	sess, err := (&Service{Hint: 1}).Open(context.Background(), UnlockRequest{Path: path, Password: []byte("pw")})
@@ -30,15 +34,6 @@ func openForShare(t *testing.T, withFS bool) *Session {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { sess.Close() })
-	if withFS {
-		fsys, err := exfat.FormatImage(sess.c, sess.c.Size(), exfat.FormatConfig{Label: "THECA"})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if err := fsys.Close(); err != nil {
-			t.Fatal(err)
-		}
-	}
 	sess.shareOpts.Mount = false
 	return sess
 }
@@ -92,6 +87,33 @@ func TestShareNeverExposesThePassword(t *testing.T) {
 		if strings.Contains(strings.ToLower(typ.Method(i).Name), "password") {
 			t.Errorf("Share has %s", typ.Method(i).Name)
 		}
+	}
+}
+
+func TestCreateExFAT(t *testing.T) {
+	// The volume holds exFAT, laid through the container.
+	sess := openForShare(t, true)
+	fsys, err := exfat.OpenReader(sess.c, sess.c.Size())
+	if err != nil {
+		t.Fatalf("no exFAT inside: %v", err)
+	}
+	fsys.Close()
+	// A raw volume holds none.
+	raw := openForShare(t, false)
+	if fsys, err := exfat.OpenReader(raw.c, raw.c.Size()); err == nil {
+		fsys.Close()
+		t.Fatal("a raw volume holds exFAT")
+	}
+}
+
+func TestCreateExFATRefusesATooSmallVolume(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "small.theca")
+	code, err := (&Service{Hint: 1}).Create(CreateRequest{Path: path, Size: "4K", FS: FSExFAT, Password: []byte("pw")})
+	if err == nil || code != "" || !strings.Contains(err.Error(), "formatting exFAT") {
+		t.Fatalf("code %q, err %v", code, err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("the half-made container was left: %v", err)
 	}
 }
 

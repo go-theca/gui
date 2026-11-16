@@ -165,6 +165,31 @@ func (v *View) toggle(label *mvvm.Observable[string], cmd *mvvm.Command) *toolki
 	return b
 }
 
+// radios is a group of radio buttons, one row each, bound to an index.
+// The group reports a click to the ViewModel; but it does not tell its
+// members which one the ViewModel's value selects, so each member's Checked
+// observable is kept in step with it here.
+func (v *View) radios(p *toolkit.VBox, title string, labels []string, obs *mvvm.Observable[int]) {
+	group := toolkit.NewRadioGroup()
+	for i, label := range labels {
+		r := toolkit.NewRadioButton(label)
+		group.Add(r)
+		t := ""
+		if i == 0 {
+			t = title
+		}
+		p.AddFixed(row(t, r), rowH)
+	}
+	v.unbind = append(v.unbind, mvvmtk.BindRadioGroup(group, obs, v.touch))
+	check := func(active int) {
+		for i, r := range group.Members {
+			r.Checked().Set(i == active)
+		}
+	}
+	check(obs.Get())
+	v.unbind = append(v.unbind, obs.Subscribe(check))
+}
+
 // row is a label and a widget that takes the rest of the width.
 func row(label string, w toolkit.Widget) *toolkit.HBox {
 	h := toolkit.NewHBox()
@@ -216,23 +241,8 @@ func (v *View) create() toolkit.Widget {
 	p.AddFixed(row("File to create:", v.field(c.Path, "/path/to/new.theca", 0)), rowH)
 	p.AddFixed(row("Size:", v.field(c.Size, "16M, 1G, or a multiple of 4096 bytes", 0)), rowH)
 
-	// The group reports a click to the ViewModel; but it does not tell its
-	// members which one the ViewModel's value selects, so each member's Checked
-	// observable is kept in step with it here.
-	group := toolkit.NewRadioGroup()
-	for _, label := range viewmodel.PolicyLabels {
-		r := toolkit.NewRadioButton(label)
-		group.Add(r)
-		p.AddFixed(row("", r), rowH)
-	}
-	v.unbind = append(v.unbind, mvvmtk.BindRadioGroup(group, c.Policy, v.touch))
-	check := func(active int) {
-		for i, r := range group.Members {
-			r.Checked().Set(i == active)
-		}
-	}
-	check(c.Policy.Get())
-	v.unbind = append(v.unbind, c.Policy.Subscribe(check))
+	v.radios(p, "Unlock with:", viewmodel.PolicyLabels, c.Policy)
+	v.radios(p, "Filesystem:", viewmodel.FSLabels, c.FS)
 
 	p.AddFixed(row("Password:", v.field(c.Password, "", maskRune)), rowH)
 	p.AddFixed(row("Repeat password:", v.field(c.Confirm, "", maskRune)), rowH)

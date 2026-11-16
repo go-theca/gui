@@ -47,6 +47,7 @@ var (
 	createContainer = theca.Create
 	passwordFactor  = theca.PasswordFactor
 	recoveryFactor  = theca.RecoveryFactor
+	formatExFAT     = share.Format
 )
 
 // Policy chooses how a new container is unlocked.
@@ -132,12 +133,24 @@ func ParseSize(s string) (uint64, error) {
 	return n * mult, nil
 }
 
+// FS is the filesystem a new container is formatted with.
+type FS int
+
+const (
+	// FSRaw: a raw volume, with nothing inside (the zero value).
+	FSRaw FS = iota
+	// FSExFAT: an exFAT filesystem laid on the volume through the container,
+	// as `theca create --fs exfat` does. Only this one can be shared.
+	FSExFAT
+)
+
 // CreateRequest describes a container to create. Password is wiped by the
 // caller, not here.
 type CreateRequest struct {
 	Path     string
 	Size     string
 	Policy   Policy
+	FS       FS
 	Password []byte
 }
 
@@ -174,6 +187,15 @@ func (s *Service) Create(req CreateRequest) (string, error) {
 		f.Close()
 		os.Remove(req.Path)
 		return "", err
+	}
+	if req.FS == FSExFAT {
+		// A volume too small for exFAT is refused, and the half-made file goes,
+		// as with the command.
+		if err := formatExFAT(c); err != nil {
+			f.Close()
+			os.Remove(req.Path)
+			return "", errors.Join(fmt.Errorf("formatting exFAT: %w", err), c.Close())
+		}
 	}
 	return code, errors.Join(c.Close(), f.Close())
 }
