@@ -23,6 +23,18 @@ var PolicyLabels = []string{
 	"2of3: the password and the recovery code are both needed",
 }
 
+// Filesystem choices, as the values of CreateVM.FS (a radio group's index).
+const (
+	FSExFAT = 0
+	FSRaw   = 1
+)
+
+// FSLabels are the radio labels, in the order of the FS values.
+var FSLabels = []string{
+	"exFAT: can be shared and mounted",
+	"raw volume: nothing inside, for import and export",
+}
+
 // DefaultSize is the size a new container is offered.
 const DefaultSize = "16M"
 
@@ -34,6 +46,7 @@ type CreateVM struct {
 	Path     *mvvm.Observable[string]
 	Size     *mvvm.Observable[string]
 	Policy   *mvvm.Observable[int]
+	FS       *mvvm.Observable[int]
 	Password *mvvm.Observable[string]
 	Confirm  *mvvm.Observable[string]
 	Busy     *mvvm.Observable[bool]
@@ -55,6 +68,7 @@ func newCreateVM(a *App) *CreateVM {
 		Path:     mvvm.NewObservable(""),
 		Size:     mvvm.NewObservable(DefaultSize),
 		Policy:   mvvm.NewObservable(PolicyAny),
+		FS:       mvvm.NewObservable(FSExFAT),
 		Password: mvvm.NewObservable(""),
 		Confirm:  mvvm.NewObservable(""),
 		Busy:     mvvm.NewObservable(false),
@@ -82,7 +96,11 @@ func (c *CreateVM) submit() {
 		Path:     strings.TrimSpace(c.Path.Get()),
 		Size:     c.Size.Get(),
 		Policy:   vault.PolicyAny,
+		FS:       vault.FSExFAT,
 		Password: []byte(c.Password.Get()),
+	}
+	if c.FS.Get() == FSRaw {
+		req.FS = vault.FSRaw
 	}
 	if c.Policy.Get() == PolicyTwoOfThree {
 		req.Policy = vault.PolicyTwoOfThree

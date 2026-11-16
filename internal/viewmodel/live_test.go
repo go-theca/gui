@@ -8,9 +8,6 @@ import (
 	"testing"
 	"time"
 
-	exfat "github.com/go-filesystems/exfat"
-	"github.com/go-theca/theca"
-
 	"github.com/go-theca/gui/internal/vault"
 )
 
@@ -23,7 +20,10 @@ import (
 // It needs a desktop where go-fileshare/automount works (macOS today). It
 // shares, writes and reads a file through the mounted volume, stops, checks
 // the volume is gone, locks, unlocks again, shares again, and reads the file
-// back: what was written went through the container.
+// back: what was written went through the container. The container itself is
+// created through the ViewModel's Create, so it also proves that what the GUI
+// creates can be shared.
+//
 // gone waits for the OS to drop a mount point: the unmount call returns before
 // the mount table is always updated, so it is polled, and how long it took is
 // logged.
@@ -46,33 +46,25 @@ func TestLiveShare(t *testing.T) {
 	}
 	const pw = "live-share-password"
 	path := filepath.Join(t.TempDir(), "live.theca")
-	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o600)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := f.Truncate(64 << 20); err != nil {
-		t.Fatal(err)
-	}
-	c, _, err := theca.Create(theca.FileBacking{File: f}, theca.CreateOptions{
-		Sectors: (64 << 20) / theca.SectorSize, Hint: 1, Password: []byte(pw),
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	fsys, err := exfat.FormatImage(c, c.Size(), exfat.FormatConfig{Label: "THECA"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := fsys.Close(); err != nil {
-		t.Fatal(err)
-	}
-	if err := c.Close(); err != nil {
-		t.Fatal(err)
-	}
-	f.Close()
-
 	a, q := newApp(Backend{V: &vault.Service{Hint: 1}})
 	s := a.Container.Share
+
+	// Create through the ViewModel, with the default filesystem (exFAT).
+	a.GoCreate.Execute()
+	a.Create.Path.Set(path)
+	a.Create.Size.Set("64M")
+	a.Create.Password.Set(pw)
+	a.Create.Confirm.Set(pw)
+	if a.Create.FS.Get() != FSExFAT {
+		t.Fatal("exFAT is not the default")
+	}
+	a.Create.Submit.Execute()
+	q.Drain()
+	if a.Screen.Get() != ScreenRecovery {
+		t.Fatalf("screen %q: %s", a.Screen.Get(), flat(a))
+	}
+	a.Create.Acked.Set(true)
+	a.Create.Done.Execute()
 	unlock := func() {
 		a.Path.Set(path)
 		a.Unlock.Password.Set(pw)

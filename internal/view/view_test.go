@@ -279,8 +279,20 @@ func TestWholeFlowThroughTheWidgets(t *testing.T) {
 			radios = append(radios, r)
 		}
 	})
-	if len(radios) != len(viewmodel.PolicyLabels) {
+	if len(radios) != len(viewmodel.PolicyLabels)+len(viewmodel.FSLabels) {
 		t.Fatalf("%d radios", len(radios))
+	}
+	// The filesystem: exFAT by default, raw on a click.
+	if !radios[2].Checked().Get() || radios[3].Checked().Get() || app.Create.FS.Get() != viewmodel.FSExFAT {
+		t.Errorf("the default filesystem is not exFAT")
+	}
+	click(v, radios[3])
+	if !radios[3].Checked().Get() || radios[2].Checked().Get() || app.Create.FS.Get() != viewmodel.FSRaw {
+		t.Errorf("raw volume not chosen")
+	}
+	click(v, radios[2])
+	if app.Create.FS.Get() != viewmodel.FSExFAT {
+		t.Errorf("exFAT not chosen back")
 	}
 	if !radios[0].Checked().Get() || radios[1].Checked().Get() {
 		t.Errorf("the default policy is not shown: %v %v", radios[0].Checked().Get(), radios[1].Checked().Get())

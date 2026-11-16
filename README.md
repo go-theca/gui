@@ -29,7 +29,8 @@ macOS, an X11 or Wayland window on Linux, a Win32 window on Windows.
 
 - **Home.** Name the container file, then *Unlock container* or *Create new
   container*.
-- **Create.** File, size (`16M`, `1G`, or a multiple of 4096 bytes), policy
+- **Create.** File, size (`16M`, `1G`, or a multiple of 4096 bytes), filesystem
+  (*exFAT*, the default, or a *raw volume*), policy
   (*any*: the password or the recovery code opens it; *2of3*: both are needed),
   and the password twice. The **recovery code is shown once**, on its own screen,
   and the screen cannot be left until you tick *I have written it down*. It is
@@ -56,8 +57,6 @@ macOS, an X11 or Wayland window on Linux, a Win32 window on Windows.
   commit or server ends the share and says why. **The share's account password
   is never shown**: the library hands it to the OS mount service and nowhere
   else. A container with no exFAT inside is refused with a message, not a crash.
-  Containers created by the GUI are raw volumes, so they cannot be shared yet
-  (see below).
 - **Every error is shown**, as the library words it, in the status area at the
   bottom. So is the notice `theca` prints at every unlock: **this container has
   no rollback counter: an older copy of it would be accepted.**
@@ -92,8 +91,10 @@ trust.
 - **Verify has no progress bar of its own**: the library verifies in one call and
   reports nothing until it is done, so the bar fills when it finishes. Import and
   export do report progress.
-- **Share needs an exFAT volume**, and *Create new container* makes a raw one: make
-  the container with `theca create --fs exfat` to share it. Mounting works on
+- **Share needs an exFAT volume.** *Create* offers the filesystem: exFAT (the
+  default, laid through the container exactly as `theca create --fs exfat` does,
+  and a volume too small for exFAT is refused and the half-made file removed)
+  or a raw volume. A raw one cannot be shared. Mounting works on
   macOS (measured); Linux (gvfs) and Windows (`MSFT_SmbMapping`) go through the
   same library but have not been run from this GUI. *Open in file manager* runs
   `open`, `xdg-open` or `explorer`.

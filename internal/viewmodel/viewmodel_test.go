@@ -283,6 +283,40 @@ func TestCreateFlow(t *testing.T) {
 	}
 }
 
+func TestCreateFilesystemChoice(t *testing.T) {
+	// exFAT is the default, so that what is created can be shared.
+	svc := &fakeService{code: "CODE"}
+	a, q := newApp(svc)
+	fillCreate(a)
+	if a.Create.FS.Get() != FSExFAT {
+		t.Fatalf("default filesystem %d", a.Create.FS.Get())
+	}
+	a.Create.Submit.Execute()
+	q.Drain()
+	if svc.createReq.FS != vault.FSExFAT {
+		t.Errorf("FS = %v", svc.createReq.FS)
+	}
+	// Raw volume on request.
+	svc = &fakeService{code: "CODE"}
+	a, q = newApp(svc)
+	fillCreate(a)
+	a.Create.FS.Set(FSRaw)
+	a.Create.Submit.Execute()
+	q.Drain()
+	if svc.createReq.FS != vault.FSRaw {
+		t.Errorf("FS = %v", svc.createReq.FS)
+	}
+	// A refusal (a volume too small for exFAT) is shown, and no code with it.
+	svc = &fakeService{createErr: errors.New("formatting exFAT: too small")}
+	a, q = newApp(svc)
+	fillCreate(a)
+	a.Create.Submit.Execute()
+	q.Drain()
+	if a.Screen.Get() == ScreenRecovery || a.Create.Recovery.Get() != "" || !strings.Contains(flat(a), "too small") {
+		t.Errorf("screen %q, messages %q", a.Screen.Get(), flat(a))
+	}
+}
+
 func TestCreateDefaultPolicyIsAny(t *testing.T) {
 	svc := &fakeService{code: "X"}
 	a, q := newApp(svc)

@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.2.0
+
+- **Create can make a shareable container.** A filesystem choice, exFAT (the
+  default) or a raw volume. exFAT is laid through the container by
+  `share.Format` (go-theca/theca v0.4.0), the same code as `theca create --fs
+  exfat`. A volume too small for exFAT is refused and the half-made file removed.
+- The live test now creates the container through the ViewModel, then shares,
+  writes and reads.
+
 ## v0.1.0
 
 The first release.
