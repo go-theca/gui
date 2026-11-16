@@ -4,6 +4,7 @@ package view
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -17,7 +18,19 @@ import (
 
 // --- a service that needs no file -------------------------------------------
 
-type session struct{ closed bool }
+type session struct {
+	closed bool
+	shares int
+}
+
+// shared is a share that runs until stopped.
+type shared struct{ done chan struct{} }
+
+func (s *shared) URL() string           { return "smb://127.0.0.1:5555/theca" }
+func (s *shared) MountPath() string     { return "/Volumes/theca" }
+func (s *shared) Done() <-chan struct{} { return s.done }
+func (s *shared) Err() error            { return nil }
+func (s *shared) Stop() error           { close(s.done); return nil }
 
 func (s *session) Info() vault.Info {
 	return vault.Info{Size: 65536, Sectors: 16, Epoch: 2, SlotsUsed: 3, JournalEntries: 64}
@@ -33,6 +46,12 @@ func (s *session) EnrollKey(context.Context, []byte, string, func() (string, err
 	return 1, nil
 }
 func (s *session) Close() error { s.closed = true; return nil }
+func (s *session) Share(context.Context) (vault.Share, error) {
+	if s.shares++; s.shares == 1 {
+		return nil, errors.New("nothing to share, the container holds no exFAT filesystem")
+	}
+	return &shared{done: make(chan struct{})}, nil
+}
 
 type service struct{ password string }
 
@@ -326,6 +345,33 @@ func TestWholeFlowThroughTheWidgets(t *testing.T) {
 	// The rollback notice is in the status area.
 	if got := strings.Join(app.Messages.Slice(), " "); !strings.Contains(got, vault.RollbackNotice) {
 		t.Errorf("messages = %q", got)
+	}
+
+	// Share: refused the first time (no exFAT inside), shown in the status area.
+	frame(v)
+	if hasLabel(v, "smb://127.0.0.1:5555/theca") {
+		t.Fatal("a share is shown before there is one")
+	}
+	click(v, button(t, v, "Share"))
+	frame(v)
+	if got := strings.Join(app.Messages.Slice(), " "); !strings.Contains(got, "nothing to share") {
+		t.Errorf("messages = %q", got)
+	}
+	// The second time it runs: the toggle now says what a click will do.
+	click(v, button(t, v, "Share"))
+	frame(v)
+	stop := button(t, v, "Stop sharing")
+	if !hasLabel(v, "smb://127.0.0.1:5555/theca") || !hasLabel(v, "/Volumes/theca") {
+		t.Errorf("labels = %q", labels(v))
+	}
+	if strings.Contains(strings.Join(labels(v), " "), "secret") {
+		t.Error("the password is on screen")
+	}
+	click(v, stop)
+	frame(v)
+	button(t, v, "Share")
+	if hasLabel(v, "smb://127.0.0.1:5555/theca") {
+		t.Error("the stopped share is still shown")
 	}
 
 	click(v, button(t, v, "Verify"))

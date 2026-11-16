@@ -4,6 +4,7 @@ package viewmodel
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -39,6 +40,9 @@ type ContainerVM struct {
 	EnrollPassword *mvvm.Observable[string]
 	EnrollRecovery *mvvm.Observable[string]
 
+	// Share is the exFAT filesystem inside, served and mounted.
+	Share *ShareVM
+
 	Verify    *mvvm.Command
 	Import    *mvvm.Command
 	Export    *mvvm.Command
@@ -63,6 +67,7 @@ func newContainerVM(a *App) *ContainerVM {
 		EnrollPassword: mvvm.NewObservable(""),
 		EnrollRecovery: mvvm.NewObservable(""),
 	}
+	c.Share = newShareVM(a, c)
 	idle := func() bool { return !c.Busy.Get() }
 	withPath := func(p *mvvm.Observable[string]) func() bool {
 		return func() bool { return !c.Busy.Get() && strings.TrimSpace(p.Get()) != "" }
@@ -95,6 +100,7 @@ func (c *ContainerVM) attach(s Session) {
 	c.Activity.Set("")
 	c.Progress.Set(0)
 	c.rollbackProtected = i.RollbackProtected
+	c.Share.idle()
 	c.app.show(ScreenContainer)
 	c.notice()
 }
@@ -179,10 +185,32 @@ func (c *ContainerVM) enrollKey() {
 	})
 }
 
-// close commits and closes the container, then goes back to the Home screen
-// whatever the outcome: a container that failed to close must be reopened.
+// close stops the share, if one runs, then commits and closes the container:
+// the share reads and writes through the container, so it ends first.
 func (c *ContainerVM) close() {
-	err := c.sess.Close()
+	if c.Share.sh != nil {
+		c.Share.stop(false, c.finishClose)
+		return
+	}
+	c.finishClose(nil)
+}
+
+// shutdown is the window closing: stop the share, then close the container,
+// all on the calling goroutine. There is no screen left to report to.
+func (c *ContainerVM) shutdown() {
+	if c.sess == nil {
+		return
+	}
+	c.Share.halt()
+	c.sess.Close()
+	c.sess = nil
+}
+
+// finishClose commits and closes the container, then goes back to the Home
+// screen whatever the outcome: a container that failed to close must be
+// reopened. stopErr is what stopping the share said.
+func (c *ContainerVM) finishClose(stopErr error) {
+	err := errors.Join(stopErr, c.sess.Close())
 	c.sess = nil
 	c.ImportPath.Set("")
 	c.ExportPath.Set("")
