@@ -4,7 +4,7 @@ go 1.27.4
 
 require (
 	github.com/go-filesystems/exfat v0.7.0
-	github.com/go-theca/theca v0.4.0
+	github.com/go-theca/theca v0.5.0
 	github.com/go-widgets/mvvm v0.15.0
 	github.com/go-widgets/mvvmtk v0.15.0
 	github.com/go-widgets/painter v0.17.1
@@ -18,12 +18,12 @@ require (
 	github.com/fxamacker/cbor/v2 v2.10.0 // indirect
 	github.com/go-authn/fido v0.9.0 // indirect
 	github.com/go-crdt/crdt v0.57.0 // indirect
-	github.com/go-fileshare/automount v0.1.0 // indirect
+	github.com/go-fileshare/automount v0.1.1 // indirect
 	github.com/go-filesystems/hostcopy v0.1.0 // indirect
 	github.com/go-filesystems/inflight v0.2.0 // indirect
 	github.com/go-filesystems/interface v0.6.0 // indirect
-	github.com/go-filesystems/smb v0.13.0 // indirect
-	github.com/go-freedesktop/gvfs v0.1.0 // indirect
+	github.com/go-filesystems/smb v0.15.0 // indirect
+	github.com/go-freedesktop/gvfs v0.1.1 // indirect
 	github.com/go-freedesktop/x11 v0.3.0 // indirect
 	github.com/go-gfx/gfx v0.41.0 // indirect
 	github.com/go-gfx/gpu2d v0.11.0 // indirect
