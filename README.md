@@ -98,6 +98,9 @@ trust.
   macOS (measured); Linux (gvfs) and Windows (`MSFT_SmbMapping`) go through the
   same library but have not been run from this GUI. *Open in file manager* runs
   `open`, `xdg-open` or `explorer`.
+- **The share is loopback only.** theca v0.5.0 can serve beyond loopback
+  (`theca serve --network`, with signing and encryption required), but the GUI has
+  no network option: it always shares on `127.0.0.1`.
 - There is no file picker yet: paths are typed (or pasted).
 - No rollback counter: there is no hardware counter support in the GUI, and no
   *accept rollback* option.
