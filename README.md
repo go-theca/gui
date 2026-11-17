@@ -168,9 +168,9 @@ THECA_GUI_LIVE=1 go test -count=1 -run 'TestLiveShare|TestLiveNetworkShare' -v .
 ```
 
 (`TestLiveNetworkShare` also asks `smbutil` what was negotiated, so it is macOS
-only. On one run in six the second mount of a test failed with macOS's
-"authentication error (errno 80)", the first mount of the same test having
-passed; it did not recur on a re-run and is not understood.)
+only. Each share has its own random account name, because macOS replays a stale
+credential for a fixed name on 127.0.0.1 and failed the second mount with
+"authentication error (errno 80)" until theca v0.10.2.)
 
 ## License
 
