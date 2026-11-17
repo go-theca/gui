@@ -36,6 +36,7 @@ const (
 	ScreenRecovery  = "recovery"
 	ScreenUnlock    = "unlock"
 	ScreenContainer = "container"
+	ScreenSlots     = "slots"
 )
 
 // What a security key is waiting for, as the values of App.KeyState.
@@ -87,6 +88,8 @@ type Session interface {
 	Export(path string, progress func(done, total int64)) (int64, error)
 	EnrollKey(ctx context.Context, password []byte, recovery string, pin func() (string, error)) (int, error)
 	Share(ctx context.Context) (vault.Share, error)
+	ListSlots(password []byte, recovery string) (vault.SlotListing, error)
+	RemoveFactors(remove, keep vault.FactorSet, password []byte, recovery string) (int, error)
 	Close() error
 }
 

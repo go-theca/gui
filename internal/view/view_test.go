@@ -46,6 +46,12 @@ func (s *session) EnrollKey(context.Context, []byte, string, func() (string, err
 	return 1, nil
 }
 func (s *session) Close() error { s.closed = true; return nil }
+func (s *session) ListSlots([]byte, string) (vault.SlotListing, error) {
+	return vault.SlotListing{Recorded: []int{3, 9}, Opened: map[vault.FactorSet][]int{vault.SetPassword: {3}}}, nil
+}
+func (s *session) RemoveFactors(vault.FactorSet, vault.FactorSet, []byte, string) (int, error) {
+	return 0, vault.ErrLastWay
+}
 func (s *session) Share(context.Context) (vault.Share, error) {
 	if s.shares++; s.shares == 1 {
 		return nil, errors.New("nothing to share, the container holds no exFAT filesystem")
@@ -436,5 +442,42 @@ func TestKeyHintIsShown(t *testing.T) {
 		if !hasLabel(v, viewmodel.KeyTouchHint) || !hasLabel(v, viewmodel.WindowsKeyNote) {
 			t.Errorf("%s: labels %q", screen, labels(v))
 		}
+	}
+}
+
+// The Keyslots screen: reached from the container, it lists, and a refused
+// removal says why on screen.
+func TestKeyslotsScreen(t *testing.T) {
+	v, app, _ := newView()
+	defer v.Close()
+	app.Path.Set("/tmp/x.theca")
+	app.Unlock.Password.Set("hunter2")
+	app.Unlock.Submit.Execute()
+	frame(v)
+	if app.Screen.Get() != viewmodel.ScreenContainer {
+		t.Fatalf("screen %q", app.Screen.Get())
+	}
+	click(v, button(t, v, "Keyslots..."))
+	frame(v)
+	if app.Screen.Get() != viewmodel.ScreenSlots {
+		t.Fatalf("screen %q", app.Screen.Get())
+	}
+	es := entries(v)
+	typeInto(v, es[0], "hunter2")
+	click(v, button(t, v, "List the slots these open"))
+	frame(v)
+	if app.Container.Keyslots.Lines.Len() != 2 {
+		t.Errorf("lines %v", app.Container.Keyslots.Lines.Slice())
+	}
+	typeInto(v, entries(v)[0], "hunter2")
+	click(v, button(t, v, "Remove that slot"))
+	frame(v)
+	if got := strings.Join(app.Messages.Slice(), " "); !strings.Contains(got, "Refused, nothing was changed") {
+		t.Errorf("messages %q", got)
+	}
+	click(v, button(t, v, "Back"))
+	frame(v)
+	if app.Screen.Get() != viewmodel.ScreenContainer {
+		t.Errorf("screen %q", app.Screen.Get())
 	}
 }

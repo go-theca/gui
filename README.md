@@ -57,6 +57,14 @@ macOS, an X11 or Wayland window on Linux, a Win32 window on Windows.
   commit or server ends the share and says why. **The share's account password
   is never shown**: the library hands it to the OS mount service and nowhere
   else. A container with no exFAT inside is refused with a message, not a crash.
+- **Keyslots.** *Keyslots...* opens a screen that lists the slots the container
+  records and which of them the password and/or recovery code you type there
+  open (a slot holds nothing that says what opens it, so the container cannot
+  say more). *Remove that slot* removes the slot of one factor set; you also
+  pick a DIFFERENT set to keep, which must still open the container. That is
+  checked before anything is written: a removal that would leave no way in is
+  refused ("Refused, nothing was changed"). Removing only stops access to this
+  copy: anyone holding an older copy can still open it with the removed factor.
 - **Every error is shown**, as the library words it, in the status area at the
   bottom. So is the notice `theca` prints at every unlock: **this container has
   no rollback counter: an older copy of it would be accepted.**
