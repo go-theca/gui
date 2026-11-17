@@ -4,15 +4,16 @@ package vault
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	exfat "github.com/go-filesystems/exfat"
+	"github.com/go-theca/theca"
 	"github.com/go-theca/theca/share"
 )
 
@@ -56,7 +57,7 @@ func TestShareDefaultsAreLoopbackAndMounted(t *testing.T) {
 
 func TestShareStartsAndStops(t *testing.T) {
 	sess := openForShare(t, true)
-	sh, err := sess.Share(context.Background())
+	sh, err := sess.Share(context.Background(), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,12 +82,39 @@ func TestShareStartsAndStops(t *testing.T) {
 	}
 }
 
-func TestShareNeverExposesThePassword(t *testing.T) {
-	typ := reflect.TypeOf((*Share)(nil)).Elem()
-	for i := 0; i < typ.NumMethod(); i++ {
-		if strings.Contains(strings.ToLower(typ.Method(i).Name), "password") {
-			t.Errorf("Share has %s", typ.Method(i).Name)
-		}
+// A network share listens on every interface and says so; its password is a
+// secret that exists but is not in the URL or the address.
+func TestNetworkShare(t *testing.T) {
+	sess := openForShare(t, true)
+	sh, err := sess.Share(context.Background(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sh.Stop()
+	if !strings.HasPrefix(sh.Addr(), "0.0.0.0:") && !strings.HasPrefix(sh.Addr(), "[::]:") {
+		t.Errorf("Addr %q", sh.Addr())
+	}
+	if !strings.HasPrefix(sh.URL(), "smb://127.0.0.1:") {
+		t.Errorf("URL %q", sh.URL())
+	}
+	if pw := sh.Password(); len(pw) < 30 || strings.Contains(sh.URL()+sh.Addr(), pw) {
+		t.Errorf("password %d chars, in the URL or address: %v", len(pw), strings.Contains(sh.URL()+sh.Addr(), pw))
+	}
+	// What the library was asked for: the network option, nothing looser.
+	var got share.Options
+	saved := startShare
+	t.Cleanup(func() { startShare = saved })
+	startShare = func(_ context.Context, _ *theca.Container, o share.Options) (Share, error) {
+		got = o
+		return nil, errors.New("stop")
+	}
+	sess.Share(context.Background(), true)
+	if !got.Network || got.Addr != networkAddr {
+		t.Errorf("network options %+v", got)
+	}
+	sess.Share(context.Background(), false)
+	if got.Network || got.Addr != "127.0.0.1:0" {
+		t.Errorf("loopback options %+v", got)
 	}
 }
 
@@ -120,13 +148,13 @@ func TestCreateExFATRefusesATooSmallVolume(t *testing.T) {
 func TestShareRefusals(t *testing.T) {
 	// A container with no exFAT inside: a plain refusal, no share left behind.
 	sess := openForShare(t, false)
-	sh, err := sess.Share(context.Background())
+	sh, err := sess.Share(context.Background(), false)
 	if sh != nil || err == nil || !strings.Contains(err.Error(), "nothing to share") || !strings.Contains(err.Error(), share.ErrNoFilesystem.Error()) {
 		t.Fatalf("raw container: %v %v", sh, err)
 	}
 	// A volume that is not a real container cannot be served.
 	s := &Session{c: &brokenVolume{}}
-	if sh, err := s.Share(context.Background()); sh != nil || err == nil {
+	if sh, err := s.Share(context.Background(), false); sh != nil || err == nil {
 		t.Fatalf("not a container: %v %v", sh, err)
 	}
 }

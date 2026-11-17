@@ -26,6 +26,8 @@ type session struct {
 // shared is a share that runs until stopped.
 type shared struct{ done chan struct{} }
 
+func (s *shared) Addr() string          { return "[::]:5555" }
+func (s *shared) Password() string      { return "view-secret" }
 func (s *shared) URL() string           { return "smb://127.0.0.1:5555/theca" }
 func (s *shared) MountPath() string     { return "/Volumes/theca" }
 func (s *shared) Done() <-chan struct{} { return s.done }
@@ -52,7 +54,7 @@ func (s *session) ListSlots([]byte, string) (vault.SlotListing, error) {
 func (s *session) RemoveFactors(vault.FactorSet, vault.FactorSet, []byte, string) (int, error) {
 	return 0, vault.ErrLastWay
 }
-func (s *session) Share(context.Context) (vault.Share, error) {
+func (s *session) Share(context.Context, bool) (vault.Share, error) {
 	if s.shares++; s.shares == 1 {
 		return nil, errors.New("nothing to share, the container holds no exFAT filesystem")
 	}
@@ -479,5 +481,53 @@ func TestKeyslotsScreen(t *testing.T) {
 	frame(v)
 	if app.Screen.Get() != viewmodel.ScreenContainer {
 		t.Errorf("screen %q", app.Screen.Get())
+	}
+}
+
+// The network choice, its warning, and the password only on request.
+func TestNetworkShareControls(t *testing.T) {
+	v, app, _ := newView()
+	defer v.Close()
+	app.Path.Set("/tmp/x.theca")
+	app.Unlock.Password.Set("hunter2")
+	app.Unlock.Submit.Execute()
+	frame(v)
+	var box *toolkit.CheckButton
+	walk(v, func(w toolkit.Widget) {
+		if c, ok := w.(*toolkit.CheckButton); ok && strings.HasPrefix(c.Label, "Share on the network") {
+			box = c
+		}
+	})
+	if box == nil {
+		t.Fatal("no network choice on the Container screen")
+	}
+	if hasLabel(v, viewmodel.NetworkWarning) {
+		t.Fatal("the warning is shown before the choice")
+	}
+	click(v, box)
+	frame(v)
+	if !app.Container.Share.Network.Get() || !hasLabel(v, viewmodel.NetworkWarning) {
+		t.Fatalf("network %v, labels %q", app.Container.Share.Network.Get(), labels(v))
+	}
+	// Share (the second call to the fake succeeds, the first is refused).
+	click(v, button(t, v, "Share"))
+	frame(v)
+	click(v, button(t, v, "Share"))
+	frame(v)
+	if !hasLabel(v, viewmodel.ScopeNetwork) {
+		t.Fatalf("labels %q", labels(v))
+	}
+	if hasLabel(v, "view-secret") {
+		t.Fatal("the password is on screen before it is asked for")
+	}
+	click(v, button(t, v, "Show password"))
+	frame(v)
+	if !hasLabel(v, "view-secret") {
+		t.Fatal("Show password did not show it")
+	}
+	click(v, button(t, v, "Hide password"))
+	frame(v)
+	if hasLabel(v, "view-secret") {
+		t.Fatal("Hide password did not hide it")
 	}
 }

@@ -13,19 +13,26 @@ import (
 
 // fakeShare is a running share; its Stop closes Done, as the real one does.
 type fakeShare struct {
-	url, mount string
-	done       chan struct{}
-	once       sync.Once
-	err        error // Err, read after Done closes
-	stopErr    error
-	stopped    int
-	events     *[]string
+	url, mount, addr string
+	done             chan struct{}
+	once             sync.Once
+	err              error // Err, read after Done closes
+	stopErr          error
+	stopped          int
+	events           *[]string
 }
 
 func newFakeShare() *fakeShare {
 	return &fakeShare{url: "smb://127.0.0.1:5555/theca", mount: "/Volumes/theca", done: make(chan struct{})}
 }
 
+func (f *fakeShare) Addr() string {
+	if f.addr != "" {
+		return f.addr
+	}
+	return "127.0.0.1:5555"
+}
+func (f *fakeShare) Password() string      { return "s3cret-password" }
 func (f *fakeShare) URL() string           { return f.url }
 func (f *fakeShare) MountPath() string     { return f.mount }
 func (f *fakeShare) Done() <-chan struct{} { return f.done }
@@ -271,5 +278,88 @@ func TestAnotherContainerStartsIdle(t *testing.T) {
 	q.Drain()
 	if a.Container.Share.State.Get() != ShareIdle || a.Container.Share.Error.Get() != "" {
 		t.Errorf("state %q error %q on a new container", a.Container.Share.State.Get(), a.Container.Share.Error.Get())
+	}
+}
+
+func TestNetworkShare(t *testing.T) {
+	sh := newFakeShare()
+	sh.addr = "[::]:4455"
+	a, q, sess := sharedContainer(t, sh)
+	s := a.Container.Share
+	if s.Network.Get() || s.Warning.Get() != "" {
+		t.Fatal("the network is chosen by default")
+	}
+	// Choosing it shows the warning, before anything is started.
+	s.Network.Set(true)
+	if s.Warning.Get() != NetworkWarning || !strings.Contains(NetworkWarning, "sign AND encrypt") || !strings.Contains(NetworkWarning, "has the password") {
+		t.Fatalf("warning %q", s.Warning.Get())
+	}
+	if sess.shareCalls != 0 {
+		t.Fatal("choosing the network started a share")
+	}
+	s.Network.Set(false)
+	if s.Warning.Get() != "" {
+		t.Fatalf("the warning outlived the choice: %q", s.Warning.Get())
+	}
+	s.Network.Set(true)
+	startShare(t, a, q)
+	if !sess.shareNetwork {
+		t.Error("the library was not asked for a network share")
+	}
+	if s.Scope.Get() != ScopeNetwork || !strings.Contains(s.Addr.Get(), "[::]:4455") || !strings.Contains(s.Addr.Get(), ":4455/theca") {
+		t.Errorf("scope %q, addr %q", s.Scope.Get(), s.Addr.Get())
+	}
+	// The password is a secret: nowhere until asked for.
+	for name, shown := range map[string]string{"URL": s.URL.Get(), "Addr": s.Addr.Get(), "Scope": s.Scope.Get(),
+		"Error": s.Error.Get(), "messages": flat(a), "warning": s.Warning.Get(), "mount": s.MountPath.Get()} {
+		if strings.Contains(shown, "s3cret") {
+			t.Errorf("%s shows the password", name)
+		}
+	}
+	if s.Password.Get() != "" || !s.ShowPassword.CanExecute() || s.HidePassword.CanExecute() {
+		t.Fatal("the password is shown before it is asked for")
+	}
+	s.ShowPassword.Execute()
+	if s.Password.Get() != "s3cret-password" || s.ShowPassword.CanExecute() || !s.HidePassword.CanExecute() {
+		t.Fatalf("after Show: %q", s.Password.Get())
+	}
+	if strings.Contains(flat(a), "s3cret") {
+		t.Error("Show password put the password in a message")
+	}
+	s.HidePassword.Execute()
+	if s.Password.Get() != "" {
+		t.Error("Hide did not hide")
+	}
+	// Stopping clears everything, the password included.
+	s.ShowPassword.Execute()
+	s.Toggle.Execute()
+	q.Drain()
+	if s.Password.Get() != "" || s.Scope.Get() != "" || s.Addr.Get() != "" || s.ShowPassword.CanExecute() {
+		t.Errorf("after stop: %q %q %q", s.Password.Get(), s.Scope.Get(), s.Addr.Get())
+	}
+}
+
+func TestLocalShareScopeAndNoPasswordUntilAsked(t *testing.T) {
+	sh := newFakeShare()
+	a, q, sess := sharedContainer(t, sh)
+	s := a.Container.Share
+	startShare(t, a, q)
+	if sess.shareNetwork || s.Scope.Get() != ScopeLocal || s.Addr.Get() != "listening on 127.0.0.1:5555" {
+		t.Errorf("network %v, scope %q, addr %q", sess.shareNetwork, s.Scope.Get(), s.Addr.Get())
+	}
+	// Locking with the password shown wipes it from the ViewModel.
+	s.ShowPassword.Execute()
+	a.Container.Close.Execute()
+	q.Drain()
+	if s.Password.Get() != "" {
+		t.Error("the password outlived the lock")
+	}
+	// An address with no port is shown as it is.
+	if portOf("nonsense") != "nonsense" {
+		t.Error("portOf")
+	}
+	// Nothing to show before a share runs.
+	if s.ShowPassword.CanExecute() {
+		t.Error("Show password is offered with no share")
 	}
 }
