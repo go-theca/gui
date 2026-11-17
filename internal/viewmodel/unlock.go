@@ -66,6 +66,7 @@ func (u *UnlockVM) submit() {
 	u.Recovery.Set("")
 	if req.UseKey {
 		u.app.Say(KeyTouchNotice)
+		u.app.setKey(KeyTouch)
 	} else {
 		u.app.Say("unlocking (stretching the password takes a moment)...")
 	}
@@ -76,6 +77,7 @@ func (u *UnlockVM) submit() {
 		clear(req.Password)
 	}, func() {
 		cancel()
+		u.app.setKey(KeyIdle)
 		if err != nil {
 			u.app.Fail(err)
 			return

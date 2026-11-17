@@ -423,3 +423,18 @@ func TestBackgroundResultsAreDrainedByTheFrame(t *testing.T) {
 		t.Error("the frame did not drain the queue")
 	}
 }
+
+// What the key waits for is on screen, on the screens that use a key.
+func TestKeyHintIsShown(t *testing.T) {
+	v, app, _ := newView()
+	defer v.Close()
+	for _, screen := range []string{viewmodel.ScreenUnlock, viewmodel.ScreenContainer} {
+		app.Screen.Set(screen)
+		app.KeyHint.Set(viewmodel.KeyTouchHint)
+		app.KeyNote.Set(viewmodel.WindowsKeyNote)
+		frame(v)
+		if !hasLabel(v, viewmodel.KeyTouchHint) || !hasLabel(v, viewmodel.WindowsKeyNote) {
+			t.Errorf("%s: labels %q", screen, labels(v))
+		}
+	}
+}

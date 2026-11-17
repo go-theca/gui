@@ -22,7 +22,7 @@ import (
 // The window's size, in logical points.
 const (
 	Width  = 640
-	Height = 740
+	Height = 800
 )
 
 // Layout, in pixels.
@@ -277,6 +277,7 @@ func (v *View) unlock() toolkit.Widget {
 	v.unbind = append(v.unbind, mvvmtk.BindChecked(key, u.UseKey, v.touch))
 	p.AddFixed(row("", key), rowH)
 	p.AddFixed(v.pinRow(), rowH)
+	v.keyRows(p)
 	p.AddFixed(buttons(
 		v.button("Unlock", u.Submit),
 		v.button("Cancel", u.Cancel),
@@ -327,5 +328,13 @@ func (v *View) container() toolkit.Widget {
 	p.AddFixed(row("Password:", v.field(c.EnrollPassword, "", maskRune)), rowH)
 	p.AddFixed(row("Recovery code:", v.field(c.EnrollRecovery, "", maskRune)), rowH)
 	p.AddFixed(v.pinRow(), rowH)
+	v.keyRows(p)
 	return p
+}
+
+// keyRows shows what a security key is waiting for, and what is true of the
+// platform (Windows asks for the PIN itself).
+func (v *View) keyRows(p *toolkit.VBox) {
+	p.AddFixed(v.shown(v.app.KeyHint), msgRowH+2)
+	p.AddFixed(v.shown(v.app.KeyNote), msgRowH+2)
 }

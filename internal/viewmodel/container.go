@@ -132,6 +132,7 @@ func (c *ContainerVM) run(start string, work func() (string, error)) {
 	var line string
 	var err error
 	c.app.async(c.Busy, func() { line, err = work() }, func() {
+		c.app.setKey(KeyIdle)
 		if err != nil {
 			c.Activity.Set("")
 			c.app.Fail(err)
@@ -177,6 +178,7 @@ func (c *ContainerVM) enrollKey() {
 	c.EnrollPassword.Set("")
 	c.EnrollRecovery.Set("")
 	c.app.Say(EnrollNotice)
+	c.app.setKey(KeyTouch)
 	ctx := context.Background()
 	c.run("enrolling the security key...", func() (string, error) {
 		n, err := c.sess.EnrollKey(ctx, pw, rec, c.app.PIN.Ask(ctx))
