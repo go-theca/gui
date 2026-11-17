@@ -69,6 +69,7 @@ func New(app *viewmodel.App, q *mvvm.Queue) *View {
 	v.stack.AddPage(viewmodel.ScreenRecovery, v.recovery())
 	v.stack.AddPage(viewmodel.ScreenUnlock, v.unlock())
 	v.stack.AddPage(viewmodel.ScreenContainer, v.container())
+	v.stack.AddPage(viewmodel.ScreenSlots, v.slots())
 	v.unbind = append(v.unbind, mvvm.BindTwoWay(app.Screen, v.stack.Visible(), v.touch))
 
 	// The status area: every error, notice and result, under whatever screen.
@@ -296,6 +297,7 @@ func (v *View) container() toolkit.Widget {
 	p.AddFixed(buttons(
 		v.button("Verify", c.Verify),
 		v.button("Enroll security key", c.EnrollKey),
+		v.button("Keyslots...", c.Keyslots.Open),
 		v.button("Close container", c.Close),
 	), buttonH)
 
@@ -329,6 +331,25 @@ func (v *View) container() toolkit.Widget {
 	p.AddFixed(row("Recovery code:", v.field(c.EnrollRecovery, "", maskRune)), rowH)
 	p.AddFixed(v.pinRow(), rowH)
 	v.keyRows(p)
+	return p
+}
+
+func (v *View) slots() toolkit.Widget {
+	s := v.app.Container.Keyslots
+	p := page()
+	p.AddFixed(v.title("Keyslots"), titleH)
+	p.AddFixed(v.text("A slot holds nothing that says what opens it: type the factors to ask."), rowH)
+	lines := toolkit.NewListBox(nil)
+	lines.RowHeight = msgRowH
+	v.unbind = append(v.unbind, mvvmtk.BindListItems(lines, s.Lines, func(l string) string { return l }, v.touch))
+	p.AddFixed(lines, 5*msgRowH)
+	p.AddFixed(row("Password:", v.field(s.Password, "", maskRune)), rowH)
+	p.AddFixed(row("Recovery code:", v.field(s.Recovery, "", maskRune)), rowH)
+	p.AddFixed(v.button("List the slots these open", s.List), buttonH)
+	v.radios(p, "Remove the slot of:", viewmodel.SetLabels, s.Remove)
+	v.radios(p, "Keep, to open it:", viewmodel.SetLabels, s.Keep)
+	p.AddFixed(v.text("Removing is refused if the set you keep would not open the container."), rowH)
+	p.AddFixed(buttons(v.button("Remove that slot", s.RemoveSlot), v.button("Back", s.Back)), buttonH)
 	return p
 }
 

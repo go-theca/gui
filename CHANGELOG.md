@@ -2,6 +2,12 @@
 
 ## Unreleased (v0.3.0)
 
+- **Keyslots screen** (from the Container screen): shows the recorded slots and
+  which ones the password and/or recovery code you type now open, and removes
+  the slot of a factor set (password, recovery code, or both) while a DIFFERENT
+  set to keep must still open the container. A removal that would leave no way
+  in is refused with a clear message and changes nothing. The secrets are typed
+  again, emptied and wiped after use. A removal only stops access to this copy.
 - theca v0.8.0 (FIDO2 on Linux and Windows).
 - The security key's state is a ViewModel state shown on screen: "touch your
   key", or "type its PIN" (masked, emptied on Submit, never in a message), then

@@ -32,6 +32,14 @@ type fakeSession struct {
 	imported, exported string
 	closed             int
 
+	listing            vault.SlotListing
+	listErr, removeErr error
+	listPW, listRec    string
+	removePW           string
+	removeRec          string
+	removeRaw          []byte
+	removed            [2]vault.FactorSet
+
 	sh         *fakeShare
 	shareErr   error
 	shareCalls int
@@ -75,6 +83,15 @@ func (s *fakeSession) Close() error {
 		*s.events = append(*s.events, "close")
 	}
 	return s.closeErr
+}
+func (s *fakeSession) ListSlots(pw []byte, rec string) (vault.SlotListing, error) {
+	s.listPW, s.listRec = string(pw), rec
+	return s.listing, s.listErr
+}
+func (s *fakeSession) RemoveFactors(rm, kp vault.FactorSet, pw []byte, rec string) (int, error) {
+	s.removed = [2]vault.FactorSet{rm, kp}
+	s.removePW, s.removeRaw, s.removeRec = string(pw), pw, rec
+	return 1, s.removeErr
 }
 func (s *fakeSession) Share(context.Context) (vault.Share, error) {
 	s.shareCalls++

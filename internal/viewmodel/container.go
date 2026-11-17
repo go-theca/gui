@@ -42,6 +42,8 @@ type ContainerVM struct {
 
 	// Share is the exFAT filesystem inside, served and mounted.
 	Share *ShareVM
+	// Keyslots is the Keyslots screen.
+	Keyslots *SlotsVM
 
 	Verify    *mvvm.Command
 	Import    *mvvm.Command
@@ -68,6 +70,7 @@ func newContainerVM(a *App) *ContainerVM {
 		EnrollRecovery: mvvm.NewObservable(""),
 	}
 	c.Share = newShareVM(a, c)
+	c.Keyslots = newSlotsVM(a, c)
 	idle := func() bool { return !c.Busy.Get() }
 	withPath := func(p *mvvm.Observable[string]) func() bool {
 		return func() bool { return !c.Busy.Get() && strings.TrimSpace(p.Get()) != "" }
