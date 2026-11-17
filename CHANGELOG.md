@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.3.1
+
+- theca v0.10.2: **fixes a second mount failing on macOS** ("authentication
+  error (errno 80)"). Every share now has its own random account name; macOS
+  replays a stale credential for a fixed name on 127.0.0.1. Live tests: network
+  share 6 of 6, local share 3 of 3 (the failure was intermittent before; the
+  cause is in theca's CHANGELOG). The README's note about the flake is removed.
+
 ## v0.3.0
 
 - **Share on the network** (a toggle beside Share): serves on every interface
