@@ -3,6 +3,7 @@
 package viewmodel
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -123,4 +124,27 @@ func TestLiveShare(t *testing.T) {
 	if a.Container.sess != nil {
 		t.Error("shutdown left the container open")
 	}
+}
+
+// TestLiveUnlockTime times one real unlock with the production Argon2id
+// profile (hint 0, 2 GiB). A single run: indicative, not a benchmark.
+//
+//	THECA_GUI_LIVE=1 go test -count=1 -run TestLiveUnlockTime -v ./internal/viewmodel
+func TestLiveUnlockTime(t *testing.T) {
+	if os.Getenv("THECA_GUI_LIVE") == "" {
+		t.Skip("set THECA_GUI_LIVE=1 to time a real unlock")
+	}
+	svc := &vault.Service{} // hint 0: what the theca command and the GUI use
+	path := filepath.Join(t.TempDir(), "t.theca")
+	if _, err := svc.Create(vault.CreateRequest{Path: path, Size: "64K", Password: []byte("pw")}); err != nil {
+		t.Fatal(err)
+	}
+	start := time.Now()
+	sess, err := svc.Open(context.Background(), vault.UnlockRequest{Path: path, Password: []byte("pw")})
+	took := time.Since(start)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sess.Close()
+	t.Logf("unlock took %v", took.Round(time.Millisecond))
 }

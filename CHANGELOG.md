@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.2.1
+
+- theca v0.7.0: faster unlock on Apple Silicon (Argon2id NEON; one unlock with
+  the default profile took 389 ms before and 281 ms after in a single run on
+  one Mac, indicative only), smb v0.16.1 per-source connection caps, bounded
+  metadata and node caches.
+- `THECA_GUI_LIVE=1 go test -run TestLiveUnlockTime` times one real unlock.
+- No code change was needed for the bump.
+
 ## v0.2.0
 
 - **Create can make a shareable container.** A filesystem choice, exFAT (the
