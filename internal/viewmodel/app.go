@@ -21,6 +21,7 @@ package viewmodel
 
 import (
 	"context"
+	"runtime"
 	"strings"
 
 	"github.com/go-widgets/mvvm"
@@ -36,6 +37,44 @@ const (
 	ScreenUnlock    = "unlock"
 	ScreenContainer = "container"
 )
+
+// What a security key is waiting for, as the values of App.KeyState.
+const (
+	KeyIdle  = "idle"
+	KeyTouch = "touch"
+	KeyPIN   = "pin"
+)
+
+// The words for each state.
+const (
+	KeyTouchHint = "Touch your security key now (it blinks)."
+	KeyPINHint   = "Your security key wants its PIN: type it below and press Submit PIN."
+	// WindowsKeyNote: Windows owns the PIN and the fingerprint prompt.
+	WindowsKeyNote = "On Windows, Windows shows its own dialog for the key's PIN or fingerprint; there is no PIN field to fill here."
+)
+
+// goos is runtime.GOOS, replaceable by tests.
+var goos = runtime.GOOS
+
+func keyNote(os string) string {
+	if os == "windows" {
+		return WindowsKeyNote
+	}
+	return ""
+}
+
+// setKey moves the security key's state and its words together.
+func (a *App) setKey(state string) {
+	a.KeyState.Set(state)
+	switch state {
+	case KeyTouch:
+		a.KeyHint.Set(KeyTouchHint)
+	case KeyPIN:
+		a.KeyHint.Set(KeyPINHint)
+	default:
+		a.KeyHint.Set("")
+	}
+}
 
 // wrapWidth is the width, in characters, messages are wrapped to.
 const wrapWidth = 72
@@ -85,6 +124,13 @@ type App struct {
 	Messages *mvvm.ObservableList[string]
 	// Path is the container to open (the Home screen's entry).
 	Path *mvvm.Observable[string]
+	// KeyState is what a security key is waiting for: KeyIdle, KeyTouch or
+	// KeyPIN. KeyHint says it in words for the person at the screen.
+	KeyState *mvvm.Observable[string]
+	KeyHint  *mvvm.Observable[string]
+	// KeyNote is what stays true about the platform: on Windows the system asks
+	// for the PIN itself.
+	KeyNote *mvvm.Observable[string]
 
 	// GoCreate and GoUnlock leave the Home screen.
 	GoCreate *mvvm.Command
@@ -110,8 +156,20 @@ func New(svc Service, q *mvvm.Queue, spawn func(func())) *App {
 		Screen:   mvvm.NewObservable(ScreenHome),
 		Messages: mvvm.NewObservableList[string](),
 		Path:     mvvm.NewObservable(""),
+		KeyState: mvvm.NewObservable(KeyIdle),
+		KeyHint:  mvvm.NewObservable(""),
+		KeyNote:  mvvm.NewObservable(keyNote(goos)),
 	}
 	a.PIN = newPINPrompt(q)
+	// The key asks for its PIN, then wants a touch: the state follows.
+	a.PIN.Needed.Subscribe(func(needed bool) {
+		switch {
+		case needed:
+			a.setKey(KeyPIN)
+		case a.KeyState.Get() == KeyPIN:
+			a.setKey(KeyTouch)
+		}
+	})
 	a.Create = newCreateVM(a)
 	a.Unlock = newUnlockVM(a)
 	a.Container = newContainerVM(a)

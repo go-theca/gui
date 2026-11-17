@@ -80,12 +80,19 @@ trust.
 |---|---|---|---|
 | Window | Cocoa | X11, Wayland | Win32 |
 | Containers | yes | yes | yes |
-| FIDO2 security key | **yes** | no | no |
+| FIDO2 security key | **measured** (YubiKey 5) | built, not measured | built, not measured |
 
-- **FIDO2 is macOS-only for now**, because the library's transport is
-  ([go-theca/theca](https://github.com/go-theca/theca) `fido2`, purego). Elsewhere,
-  *Use security key* and *Enroll security key* fail, and the error the library
-  gives is shown as it is. Everything else works.
+- **FIDO2** goes through [go-theca/theca](https://github.com/go-theca/theca)
+  `fido2` v0.8.0: CTAP over HID on macOS and Linux, `webauthn.dll` on Windows.
+  *Use security key* pairs the key with the password or the recovery code (it
+  never opens a container alone), and *Enroll security key* needs two touches.
+  The screen says what the key is waiting for ("Touch your security key now",
+  or its PIN, asked in a masked field that is emptied on Submit and never
+  logged). **On Windows, Windows shows its own dialog for the PIN or
+  fingerprint**, and the GUI says so; there is no PIN field to fill. Linux needs
+  a udev rule giving your user access to `/dev/hidraw*`. The GUI's key states
+  are tested with a fake key; a real-key run needs a touch, and has been done
+  by hand on macOS only.
 - The Linux and Windows windows are built and cross-compiled in CI, but have not
   been run by hand yet; macOS is the platform this was developed and run on.
 - **Verify has no progress bar of its own**: the library verifies in one call and

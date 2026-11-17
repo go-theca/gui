@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased (v0.3.0)
+
+- theca v0.8.0 (FIDO2 on Linux and Windows).
+- The security key's state is a ViewModel state shown on screen: "touch your
+  key", or "type its PIN" (masked, emptied on Submit, never in a message), then
+  touch again. On Windows the screen says that Windows shows its own dialog.
+  The window is 800 points tall.
+
 ## v0.2.1
 
 - theca v0.7.0: faster unlock on Apple Silicon (Argon2id NEON; one unlock with

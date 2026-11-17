@@ -4,7 +4,7 @@ go 1.27.4
 
 require (
 	github.com/go-filesystems/exfat v0.7.0
-	github.com/go-theca/theca v0.7.0
+	github.com/go-theca/theca v0.8.0
 	github.com/go-widgets/mvvm v0.15.0
 	github.com/go-widgets/mvvmtk v0.15.0
 	github.com/go-widgets/painter v0.17.1
@@ -30,6 +30,7 @@ require (
 	github.com/go-gfx/gfx v0.41.0 // indirect
 	github.com/go-gfx/gpu2d v0.11.0 // indirect
 	github.com/go-gfx/vulkan v0.2.1 // indirect
+	github.com/go-gnulinux/fido v0.5.1 // indirect
 	github.com/go-gtk/gtk4 v0.9.0 // indirect
 	github.com/go-icons/iconoir v0.3.0 // indirect
 	github.com/go-images/images v0.3.0 // indirect
@@ -40,6 +41,7 @@ require (
 	github.com/go-macos/netfs v0.1.0 // indirect
 	github.com/go-macos/objc v0.12.0 // indirect
 	github.com/go-mswin/d3d11 v0.3.0 // indirect
+	github.com/go-mswin/webauthn v0.5.0 // indirect
 	github.com/go-mswin/win32 v0.7.0 // indirect
 	github.com/go-opentype/fonts v0.14.0 // indirect
 	github.com/go-opentype/opentype v0.20.0 // indirect
