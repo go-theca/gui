@@ -5,7 +5,10 @@ package viewmodel
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -147,4 +150,77 @@ func TestLiveUnlockTime(t *testing.T) {
 	}
 	sess.Close()
 	t.Logf("unlock took %v", took.Round(time.Millisecond))
+}
+
+// TestLiveNetworkShare shares on the NETWORK through the ViewModel against a
+// real container and a real mount, and asks the OS what it negotiated:
+// smbutil must report encryption and signing REQUIRED. macOS only.
+//
+//	THECA_GUI_LIVE=1 go test -count=1 -run TestLiveNetworkShare -v ./internal/viewmodel
+func TestLiveNetworkShare(t *testing.T) {
+	if os.Getenv("THECA_GUI_LIVE") == "" {
+		t.Skip("set THECA_GUI_LIVE=1 to mount a real share")
+	}
+	if runtime.GOOS != "darwin" {
+		t.Skip("smbutil is macOS only")
+	}
+	const pw = "live-network-password"
+	path := filepath.Join(t.TempDir(), "net.theca")
+	a, q := newApp(Backend{V: &vault.Service{Hint: 1}})
+	a.GoCreate.Execute()
+	a.Create.Path.Set(path)
+	a.Create.Size.Set("64M")
+	a.Create.Password.Set(pw)
+	a.Create.Confirm.Set(pw)
+	a.Create.Submit.Execute()
+	q.Drain()
+	a.Create.Acked.Set(true)
+	a.Create.Done.Execute()
+	a.Path.Set(path)
+	a.Unlock.Password.Set(pw)
+	a.Unlock.Submit.Execute()
+	q.Drain()
+	if a.Screen.Get() != ScreenContainer {
+		t.Fatalf("screen %q: %s", a.Screen.Get(), flat(a))
+	}
+	s := a.Container.Share
+	s.Network.Set(true)
+	s.Toggle.Execute()
+	q.Drain()
+	if s.State.Get() != ShareShared {
+		t.Fatalf("state %q: %s", s.State.Get(), flat(a))
+	}
+	t.Logf("scope %q; %s; mounted at %s", s.Scope.Get(), s.Addr.Get(), s.MountPath.Get())
+	file := filepath.Join(s.MountPath.Get(), "net.txt")
+	if err := os.WriteFile(file, []byte("over the network share"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if b, err := os.ReadFile(file); err != nil || string(b) != "over the network share" {
+		t.Fatalf("read back %q: %v", b, err)
+	}
+	out, err := exec.Command("smbutil", "statshares", "-a").CombinedOutput()
+	if err != nil {
+		t.Fatalf("smbutil: %v\n%s", err, out)
+	}
+	attrs := map[string]string{}
+	for _, line := range strings.Split(string(out), "\n") {
+		if f := strings.Fields(line); len(f) == 2 {
+			attrs[f[0]] = f[1]
+		}
+	}
+	if attrs["ENCRYPTION_REQUIRED"] != "TRUE" || attrs["SIGNING_REQUIRED"] != "TRUE" ||
+		!strings.HasPrefix(attrs["SMB_CURR_ENCRYPT_ALGORITHM"], "AES") {
+		t.Errorf("smbutil: encryption required %q, signing required %q, cipher %q",
+			attrs["ENCRYPTION_REQUIRED"], attrs["SIGNING_REQUIRED"], attrs["SMB_CURR_ENCRYPT_ALGORITHM"])
+	}
+	t.Logf("smbutil: encryption %s (required %s), signing %s (required %s)",
+		attrs["SMB_CURR_ENCRYPT_ALGORITHM"], attrs["ENCRYPTION_REQUIRED"], attrs["SMB_CURR_SIGN_ALGORITHM"], attrs["SIGNING_REQUIRED"])
+	// The password stays out of sight until asked.
+	if s.Password.Get() != "" {
+		t.Error("the password is shown")
+	}
+	s.Toggle.Execute()
+	q.Drain()
+	gone(t, filepath.Dir(file), "stopping")
+	a.Shutdown()
 }

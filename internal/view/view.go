@@ -22,7 +22,7 @@ import (
 // The window's size, in logical points.
 const (
 	Width  = 640
-	Height = 800
+	Height = 960
 )
 
 // Layout, in pixels.
@@ -305,6 +305,14 @@ func (v *View) container() toolkit.Widget {
 	// the mounted volume in the file manager. The password is never shown.
 	sh := c.Share
 	p.AddFixed(buttons(v.toggle(sh.Label, sh.Toggle), v.button("Open in file manager", sh.Open)), buttonH)
+	net := toolkit.NewCheckButton("Share on the network (not only this computer)", false)
+	v.unbind = append(v.unbind, mvvmtk.BindChecked(net, sh.Network, v.touch))
+	p.AddFixed(net, rowH)
+	p.AddFixed(v.shown(sh.Warning), 2*msgRowH+2)
+	p.AddFixed(row("Reachable:", v.shown(sh.Scope)), msgRowH+2)
+	p.AddFixed(v.shown(sh.Addr), msgRowH+2)
+	p.AddFixed(buttons(v.button("Show password", sh.ShowPassword), v.button("Hide password", sh.HidePassword)), buttonH)
+	p.AddFixed(row("Password:", v.shown(sh.Password)), msgRowH+2)
 	p.AddFixed(row("Shared at:", v.shown(sh.URL)), msgRowH+2)
 	p.AddFixed(row("Mounted at:", v.shown(sh.MountPath)), msgRowH+2)
 

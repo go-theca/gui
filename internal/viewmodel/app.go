@@ -87,7 +87,7 @@ type Session interface {
 	Import(path string, progress func(done, total int64)) (int64, error)
 	Export(path string, progress func(done, total int64)) (int64, error)
 	EnrollKey(ctx context.Context, password []byte, recovery string, pin func() (string, error)) (int, error)
-	Share(ctx context.Context) (vault.Share, error)
+	Share(ctx context.Context, network bool) (vault.Share, error)
 	ListSlots(password []byte, recovery string) (vault.SlotListing, error)
 	RemoveFactors(remove, keep vault.FactorSet, password []byte, recovery string) (int, error)
 	Close() error

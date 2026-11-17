@@ -1,7 +1,15 @@
 # Changelog
 
-## Unreleased (v0.3.0)
+## v0.3.0
 
+- **Share on the network** (a toggle beside Share): serves on every interface
+  with message signing AND encryption required of every client (theca
+  `share.Options{Network: true}`). A warning says that anyone on the network
+  with the password can connect. The screen shows where it listens and the
+  port; the password stays hidden until *Show password*, and is cleared at
+  stop, lock and close. Live-tested on macOS: smbutil reports encryption and
+  signing required.
+- The window is 960 points tall.
 - **Keyslots screen** (from the Container screen): shows the recorded slots and
   which ones the password and/or recovery code you type now open, and removes
   the slot of a factor set (password, recovery code, or both) while a DIFFERENT

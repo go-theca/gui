@@ -40,10 +40,11 @@ type fakeSession struct {
 	removeRaw          []byte
 	removed            [2]vault.FactorSet
 
-	sh         *fakeShare
-	shareErr   error
-	shareCalls int
-	events     *[]string // what was stopped and closed, in order
+	sh           *fakeShare
+	shareErr     error
+	shareCalls   int
+	shareNetwork bool
+	events       *[]string // what was stopped and closed, in order
 }
 
 func (s *fakeSession) Info() vault.Info { return s.info }
@@ -93,8 +94,9 @@ func (s *fakeSession) RemoveFactors(rm, kp vault.FactorSet, pw []byte, rec strin
 	s.removePW, s.removeRaw, s.removeRec = string(pw), pw, rec
 	return 1, s.removeErr
 }
-func (s *fakeSession) Share(context.Context) (vault.Share, error) {
+func (s *fakeSession) Share(_ context.Context, network bool) (vault.Share, error) {
 	s.shareCalls++
+	s.shareNetwork = network
 	if s.shareErr != nil {
 		return nil, s.shareErr
 	}

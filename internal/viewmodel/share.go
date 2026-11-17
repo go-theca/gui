@@ -5,6 +5,7 @@ package viewmodel
 import (
 	"context"
 	"errors"
+	"net"
 
 	"github.com/go-widgets/mvvm"
 
@@ -23,6 +24,15 @@ const (
 const (
 	LabelShare = "Share"
 	LabelStop  = "Stop sharing"
+)
+
+// NetworkWarning is shown whenever the share may leave this computer.
+const NetworkWarning = "Network share: every client must sign AND encrypt (an older or plainer client is refused), but anyone on the network who can reach this computer and has the password can read and write the files."
+
+// The scope of a running share, as the values of ShareVM.Scope.
+const (
+	ScopeLocal   = "This computer only (127.0.0.1)"
+	ScopeNetwork = "The network (signing and encryption required)"
 )
 
 // errShareEnded is shown when a share ends by itself without saying why.
@@ -48,6 +58,21 @@ type ShareVM struct {
 	MountPath *mvvm.Observable[string]
 	// Error is why the last start or the running share failed.
 	Error *mvvm.Observable[string]
+	// Network is the "Share on the network" choice, taken when sharing starts.
+	Network *mvvm.Observable[bool]
+	// Warning is NetworkWarning while Network is chosen, "" otherwise.
+	Warning *mvvm.Observable[string]
+	// Scope and Addr say how the running share is reachable: where it listens,
+	// and (on the network) the port another machine connects to.
+	Scope *mvvm.Observable[string]
+	Addr  *mvvm.Observable[string]
+	// Password is the account's SECRET: empty until ShowPassword, emptied again
+	// by HidePassword, at stop and at lock. It is never in a message or a log.
+	Password *mvvm.Observable[string]
+
+	// ShowPassword reveals the password; HidePassword takes it off the screen.
+	ShowPassword *mvvm.Command
+	HidePassword *mvvm.Command
 
 	// Toggle starts the share, or stops it.
 	Toggle *mvvm.Command
@@ -65,7 +90,24 @@ func newShareVM(a *App, c *ContainerVM) *ShareVM {
 		URL:       mvvm.NewObservable(""),
 		MountPath: mvvm.NewObservable(""),
 		Error:     mvvm.NewObservable(""),
+		Network:   mvvm.NewObservable(false),
+		Warning:   mvvm.NewObservable(""),
+		Scope:     mvvm.NewObservable(""),
+		Addr:      mvvm.NewObservable(""),
+		Password:  mvvm.NewObservable(""),
 	}
+	s.Network.Subscribe(func(on bool) {
+		if on {
+			s.Warning.Set(NetworkWarning)
+		} else {
+			s.Warning.Set("")
+		}
+	})
+	s.ShowPassword = mvvm.NewCommand(func() { s.Password.Set(s.sh.Password()) },
+		func() bool { return s.sh != nil && s.Password.Get() == "" })
+	mvvm.BindCanExecute(s.ShowPassword, s.State, s.Password)
+	s.HidePassword = mvvm.NewCommand(func() { s.Password.Set("") }, func() bool { return s.Password.Get() != "" })
+	mvvm.BindCanExecute(s.HidePassword, s.Password)
 	s.Toggle = mvvm.NewCommand(s.toggle, func() bool { return !c.Busy.Get() })
 	mvvm.BindCanExecute(s.Toggle, c.Busy)
 	s.Open = mvvm.NewCommand(s.open, func() bool { return !c.Busy.Get() && s.MountPath.Get() != "" })
@@ -80,6 +122,9 @@ func (s *ShareVM) idle() {
 	s.URL.Set("")
 	s.MountPath.Set("")
 	s.Error.Set("")
+	s.Scope.Set("")
+	s.Addr.Set("")
+	s.Password.Set("")
 }
 
 // fail shows why the share is not running.
@@ -104,7 +149,8 @@ func (s *ShareVM) start() {
 	s.app.Say("starting the share and mounting it...")
 	var sh vault.Share
 	var err error
-	s.app.async(s.c.Busy, func() { sh, err = s.c.sess.Share(context.Background()) }, func() {
+	network := s.Network.Get()
+	s.app.async(s.c.Busy, func() { sh, err = s.c.sess.Share(context.Background(), network) }, func() {
 		if err != nil {
 			s.fail(err)
 			return
@@ -114,6 +160,13 @@ func (s *ShareVM) start() {
 		s.Label.Set(LabelStop)
 		s.URL.Set(sh.URL())
 		s.MountPath.Set(sh.MountPath())
+		if network {
+			s.Scope.Set(ScopeNetwork)
+			s.Addr.Set("listening on " + sh.Addr() + "; from another machine: smb://<this computer's address>:" + portOf(sh.Addr()) + "/theca")
+		} else {
+			s.Scope.Set(ScopeLocal)
+			s.Addr.Set("listening on " + sh.Addr())
+		}
 		s.c.notice()
 		// A failed commit or server ends the share by itself. Not spawn: this
 		// waits, and the tests run spawn at once.
@@ -161,6 +214,14 @@ func (s *ShareVM) halt() error {
 	}
 	s.sh = nil
 	return sh.Stop()
+}
+
+// portOf is the port of a host:port address.
+func portOf(addr string) string {
+	if _, port, err := net.SplitHostPort(addr); err == nil {
+		return port
+	}
+	return addr
 }
 
 func (s *ShareVM) open() {

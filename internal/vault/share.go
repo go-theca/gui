@@ -15,11 +15,16 @@ import (
 )
 
 // Share is a running share of the exFAT filesystem inside an unlocked
-// container, as the GUI uses it: *share.Share without its Password. The
-// account's password is never shown, so it is not reachable from here.
+// container, as the GUI uses it: *share.Share. Its Password is a secret: the
+// ViewModel asks for it only on an explicit "Show password".
 type Share interface {
-	// URL is the share's address, smb://127.0.0.1:<port>/theca.
+	// URL is the share's address as a client on this machine reaches it,
+	// smb://127.0.0.1:<port>/theca.
 	URL() string
+	// Addr is where it listens, 127.0.0.1:<port> or, on the network, [::]:<port>.
+	Addr() string
+	// Password is the account's password: a SECRET, never logged.
+	Password() string
 	// MountPath is where the file manager mounted it.
 	MountPath() string
 	// Done is closed when the share ends by itself (a failed commit or server).
@@ -45,15 +50,24 @@ var startShare = func(ctx context.Context, c *theca.Container, o share.Options) 
 	return sh, nil
 }
 
-// Share serves the exFAT filesystem inside the container over SMB on loopback
-// and mounts it in the file manager. The container stays open and owned by the
-// Session: stop the share, then close the session.
-func (s *Session) Share(ctx context.Context) (Share, error) {
+// networkAddr is where a network share listens: every interface, a free port.
+const networkAddr = "0.0.0.0:0"
+
+// Share serves the exFAT filesystem inside the container over SMB and mounts
+// it in the file manager. On loopback by default; with network, on every
+// interface, and the server then REQUIRES signing and encryption of every
+// client (theca's share.Options.Network). The container stays open and owned
+// by the Session: stop the share, then close the session.
+func (s *Session) Share(ctx context.Context, network bool) (Share, error) {
 	c, ok := s.c.(*theca.Container)
 	if !ok {
 		return nil, errors.New("this container cannot be shared")
 	}
-	sh, err := startShare(ctx, c, s.shareOpts)
+	o := s.shareOpts
+	if network {
+		o.Addr, o.Network = networkAddr, true
+	}
+	sh, err := startShare(ctx, c, o)
 	if errors.Is(err, share.ErrNoFilesystem) {
 		return nil, fmt.Errorf("nothing to share, %w", err)
 	}

@@ -113,9 +113,18 @@ trust.
   macOS (measured); Linux (gvfs) and Windows (`MSFT_SmbMapping`) go through the
   same library but have not been run from this GUI. *Open in file manager* runs
   `open`, `xdg-open` or `explorer`.
-- **The share is loopback only.** theca v0.5.0 can serve beyond loopback
-  (`theca serve --network`, with signing and encryption required), but the GUI has
-  no network option: it always shares on `127.0.0.1`.
+- **Network sharing is opt-in.** *Share on the network* (beside *Share*) serves
+  on every interface instead of `127.0.0.1`, as `theca serve --network` does:
+  the server then REQUIRES message signing and encryption of every client, so a
+  plainer or older client is refused. It is still open to anyone on the network
+  who can reach this computer and has the password, and the screen says so
+  before you share. It shows where the share listens and the port another
+  machine connects to. **The password is a secret**: it is not on screen until
+  you press *Show password* (and *Hide password* takes it off); stopping,
+  locking or closing the window clears it. It is never logged. Measured on
+  macOS 27.2.1: `smbutil statshares` reports AES-128-GCM encryption and
+  AES_128_GMAC signing, both required. Another machine as a client is not
+  measured.
 - There is no file picker yet: paths are typed (or pasted).
 - No rollback counter: there is no hardware counter support in the GUI, and no
   *accept rollback* option.
@@ -155,8 +164,13 @@ The share is proven against a real container and a real mount by a test that
 runs only when asked (it mounts a volume on the machine, so CI skips it):
 
 ```sh
-THECA_GUI_LIVE=1 go test -count=1 -run TestLiveShare -v ./internal/viewmodel
+THECA_GUI_LIVE=1 go test -count=1 -run 'TestLiveShare|TestLiveNetworkShare' -v ./internal/viewmodel
 ```
+
+(`TestLiveNetworkShare` also asks `smbutil` what was negotiated, so it is macOS
+only. On one run in six the second mount of a test failed with macOS's
+"authentication error (errno 80)", the first mount of the same test having
+passed; it did not recur on a re-run and is not understood.)
 
 ## License
 
