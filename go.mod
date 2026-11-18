@@ -4,11 +4,11 @@ go 1.27.4
 
 require (
 	github.com/go-filesystems/exfat v0.7.0
-	github.com/go-theca/theca v0.10.2
+	github.com/go-theca/theca v0.16.0
 	github.com/go-widgets/mvvm v0.15.0
-	github.com/go-widgets/mvvmtk v0.15.0
+	github.com/go-widgets/mvvmtk v0.16.0
 	github.com/go-widgets/painter v0.17.1
-	github.com/go-widgets/toolkit v0.378.0
+	github.com/go-widgets/toolkit v0.385.0
 	github.com/go-widgets/window v0.93.0
 )
 
@@ -16,8 +16,8 @@ require (
 	github.com/dsnet/compress v0.0.2-0.20230904184137-39efe44ab707 // indirect
 	github.com/ebitengine/purego v0.11.3 // indirect
 	github.com/fxamacker/cbor/v2 v2.10.0 // indirect
-	github.com/go-authn/fido v0.9.0 // indirect
-	github.com/go-crdt/crdt v0.57.0 // indirect
+	github.com/go-authn/fido v0.12.0 // indirect
+	github.com/go-crdt/crdt v0.59.0 // indirect
 	github.com/go-encryptions/argon2 v0.1.0 // indirect
 	github.com/go-encryptions/ctr v0.1.1 // indirect
 	github.com/go-fileshare/automount v0.1.1 // indirect
@@ -30,12 +30,11 @@ require (
 	github.com/go-gfx/gfx v0.41.0 // indirect
 	github.com/go-gfx/gpu2d v0.11.0 // indirect
 	github.com/go-gfx/vulkan v0.2.1 // indirect
-	github.com/go-gnulinux/fido v0.5.1 // indirect
+	github.com/go-gnulinux/fido v0.6.0 // indirect
 	github.com/go-gtk/gtk4 v0.9.0 // indirect
-	github.com/go-icons/iconoir v0.3.0 // indirect
 	github.com/go-images/images v0.3.0 // indirect
 	github.com/go-macos/appkit v0.9.0 // indirect
-	github.com/go-macos/fido v0.5.2 // indirect
+	github.com/go-macos/fido v0.6.0 // indirect
 	github.com/go-macos/iokit v0.14.0 // indirect
 	github.com/go-macos/metal v0.6.0 // indirect
 	github.com/go-macos/netfs v0.1.0 // indirect
