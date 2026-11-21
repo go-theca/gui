@@ -95,8 +95,8 @@ github.com/go-richdoc/richdoc v0.7.0 h1:vhHypa0y26ulrOz6Aw1RIzeLjSMsFJyU1SzK5jd9
 github.com/go-richdoc/richdoc v0.7.0/go.mod h1:RhxAcqwoUg1pnTYCiRdKILzOZwOmraO0dMJI4N6yY70=
 github.com/go-scikit/refbench v0.3.0 h1:ng9b3FRwOWyarkoHHLar1bs43TWi9TydZeO29Yr9iSw=
 github.com/go-scikit/refbench v0.3.0/go.mod h1:PhJxvLwXiQeKLP2f5ndcb9k5k4PTvU1rSFJ/MKRCrU0=
-github.com/go-theca/theca v0.23.0 h1:m05gDiZvKIvlVOVP7y1+USQaIIXqeVfw3tfrR3HpRWk=
-github.com/go-theca/theca v0.23.0/go.mod h1:xbrLSzcxvfTF29taQJl/cP61MmOokn5Ye3r3N6pcHxE=
+github.com/go-theca/theca v0.24.0 h1:9BKeA7Uf4I73/nwMHUZlkG2nx7b7n8Zqr8cLaI1eShU=
+github.com/go-theca/theca v0.24.0/go.mod h1:xbrLSzcxvfTF29taQJl/cP61MmOokn5Ye3r3N6pcHxE=
 github.com/go-typeset/bidi v0.3.1 h1:fsTa0b9txt2SkH7M55EZ06+q3N9C4O0Oerf+SPLLGFs=
 github.com/go-typeset/bidi v0.3.1/go.mod h1:ct3cmYT8Qt1FGJQ+2QaakrUxqaP4ZysgdQQg2ym5+Xo=
 github.com/go-volumes/gpt v0.3.0 h1:ZA33VVlmlkA47fFY+BkFylsufqq1TBoASIuBmri+xsw=
@@ -115,8 +115,8 @@ github.com/go-widgets/painter v0.17.1 h1:inOmnCGSiHd4oZx7Zm7PJRDWWSEopnEnvDKEeFu
 github.com/go-widgets/painter v0.17.1/go.mod h1:8kERcZUoWNyLIas1NsMWiYynvvyx+hcB2cNIh0Bx0yc=
 github.com/go-widgets/textinput v0.1.1 h1:3NZD5CJm5XYSWA3YzQ64tXC86gnEQ0UlNPL5qJeIUSs=
 github.com/go-widgets/textinput v0.1.1/go.mod h1:Y/k3PDtUEMQ/4psCVKdmUStNWa/EsVAMcCKG2lEtQ5c=
-github.com/go-widgets/toolkit v0.385.0 h1:XF3XLB1aeWqq8WPCBjuupspEkWtZrrEFclNSk8+cGIo=
-github.com/go-widgets/toolkit v0.385.0/go.mod h1:1ks//sTcSYxAGx9G5vZaAtUiJ9EKFITW2siDFRURwcc=
+github.com/go-widgets/toolkit v0.395.3 h1:1M4b4bvKPM8iw5g03AVzm6AicVfRisL9bMQMT9s0rBs=
+github.com/go-widgets/toolkit v0.395.3/go.mod h1:1ks//sTcSYxAGx9G5vZaAtUiJ9EKFITW2siDFRURwcc=
 github.com/go-widgets/vcs v0.1.0 h1:1pZQygSsKBWZepAgsTdqh1bwHBjPwaLM4p7bAAONGnk=
 github.com/go-widgets/vcs v0.1.0/go.mod h1:c2SbtsVVLJUJAf/vOeMKkFWZRFyMAeDrY8rfyUyIevs=
 github.com/go-widgets/webcanvas v0.14.1 h1:FKCY96ERrfLGX2D6QZmUGZ32qbwlAPFOMidkuY3E3UM=
