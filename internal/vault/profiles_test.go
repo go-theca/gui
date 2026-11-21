@@ -89,11 +89,12 @@ func TestSessionsAgainstARealSocket(t *testing.T) {
 
 func TestSessionsRefuseABadName(t *testing.T) {
 	shortRuntimeDir(t)
-	if _, err := (Sessions{}).Status(context.Background(), "a/b"); err == nil {
-		t.Fatal("status of a bad name")
+	// The refusal is the name's own, not a failure to dial an empty path.
+	if _, err := (Sessions{}).Status(context.Background(), "a/b"); err == nil || !strings.Contains(err.Error(), "bad name") {
+		t.Fatalf("status of a bad name: %v", err)
 	}
-	if err := (Sessions{}).Close(context.Background(), ""); err == nil {
-		t.Fatal("close of a bad name")
+	if err := (Sessions{}).Close(context.Background(), ""); err == nil || !strings.Contains(err.Error(), "bad name") {
+		t.Fatalf("close of a bad name: %v", err)
 	}
 }
 
