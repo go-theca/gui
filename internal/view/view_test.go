@@ -78,7 +78,7 @@ func (s *service) Open(_ context.Context, req vault.UnlockRequest) (viewmodel.Se
 func newView() (*View, *viewmodel.App, *service) {
 	svc := &service{}
 	q := mvvm.NewQueue(nil)
-	app := viewmodel.New(svc, q, func(f func()) { f() })
+	app := viewmodel.New(svc, viewmodel.Host{Store: &store{}, Sessions: &sessions{}, Spawner: &spawner{}}, q, func(f func()) { f() })
 	return New(app, q), app, svc
 }
 

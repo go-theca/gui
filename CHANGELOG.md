@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.4.0
+
+- **My profiles** (go-theca/gui#12): a screen, from Home, that lists the profiles
+  of `containers.toml` with their state (closed; open with the mount point and
+  since when; or the error), and opens and closes them like `theca open NAME`
+  and `theca close NAME`. Open starts the same background process through the
+  new `session.Start` of theca v0.23.0; the secrets come from the references in
+  the profile, so the screen never asks for or holds one. While the process
+  waits for the security key the row says so and the key hint is shown; Cancel
+  ends the wait. Needs the `theca` command (PATH, then `~/.local/bin`,
+  `~/go/bin`, `/usr/local/bin`, `/opt/homebrew/bin`). Tested with fakes for
+  the store, the session client and the spawner, and against a real session
+  socket; the app was started once on macOS against a temporary
+  `containers.toml` (it started; no container was opened and the screen was
+  not clicked through by hand).
+- theca v0.23.0.
+
 ## v0.3.1
 
 - theca v0.10.2: **fixes a second mount failing on macOS** ("authentication

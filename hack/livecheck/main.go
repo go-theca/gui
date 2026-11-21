@@ -93,7 +93,11 @@ func run(dir string) error {
 			r.Repaint()
 		}
 	})
-	app := viewmodel.New(viewmodel.Backend{V: vault.New()}, q, nil)
+	host, err := viewmodel.DefaultHost()
+	if err != nil {
+		return err
+	}
+	app := viewmodel.New(viewmodel.Backend{V: vault.New()}, host, q, nil)
 	v := view.New(app, q)
 
 	result := make(chan error, 1)

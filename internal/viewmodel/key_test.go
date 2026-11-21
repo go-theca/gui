@@ -24,7 +24,7 @@ func TestKeyStateAtUnlock(t *testing.T) {
 		req.PIN()
 	}
 	q := mvvm.NewQueue(nil)
-	a := New(svc, q, nil)
+	a := New(svc, Host{}, q, nil)
 	if a.KeyState.Get() != KeyIdle || a.KeyHint.Get() != "" {
 		t.Fatalf("not idle at the start: %q %q", a.KeyState.Get(), a.KeyHint.Get())
 	}
@@ -68,7 +68,7 @@ func TestKeyNeverUnlocksAlone(t *testing.T) {
 
 func TestKeyStateAtEnrol(t *testing.T) {
 	q := mvvm.NewQueue(nil)
-	a := New(&fakeService{sess: &fakeSession{}}, q, nil)
+	a := New(&fakeService{sess: &fakeSession{}}, Host{}, q, nil)
 	fillUnlock(a)
 	a.Unlock.Submit.Execute()
 	waitFor(t, q, func() bool { return a.Screen.Get() == ScreenContainer })

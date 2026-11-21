@@ -59,7 +59,11 @@ func run() error {
 		toolkit.SetClipboard(c)
 	}
 
-	app := viewmodel.New(viewmodel.Backend{V: vault.New()}, q, nil)
+	host, err := viewmodel.DefaultHost()
+	if err != nil {
+		return err
+	}
+	app := viewmodel.New(viewmodel.Backend{V: vault.New()}, host, q, nil)
 	v := view.New(app, q)
 	defer v.Close()
 	// Last deferred, first run: the share stops and the container closes
