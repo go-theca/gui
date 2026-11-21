@@ -65,6 +65,23 @@ macOS, an X11 or Wayland window on Linux, a Win32 window on Windows.
   checked before anything is written: a removal that would leave no way in is
   refused ("Refused, nothing was changed"). Removing only stops access to this
   copy: anyone holding an older copy can still open it with the removed factor.
+- **My profiles.** *My profiles...* on the Home screen lists the profiles of
+  `containers.toml` (the file `theca profile add` writes, in your configuration
+  directory), each with its state: *closed*, *open, mounted at ..., since ...*, or
+  the reason it cannot be asked. Select one and press *Open* or *Close*, which
+  do what `theca open NAME` and `theca close NAME` do: *Open* starts the same
+  background process (`theca _serve NAME`, through `session.Start` of
+  [go-theca/theca](https://github.com/go-theca/theca) v0.23.0), which reads the
+  password, recovery code and PIN from the references in the profile (the OS
+  keychain, Secret Service or KeePassXC), so **this screen never asks for or
+  holds a secret**. While the process waits for the security key the row reads
+  *touch your security key now* and the key hint is shown; *Cancel* ends the
+  wait and the process. The GUI needs the `theca` command to open a profile: it
+  looks on the `PATH`, then in `~/.local/bin`, `~/go/bin`, `/usr/local/bin` and
+  `/opt/homebrew/bin` (a program started from the desktop has a short `PATH`),
+  and says how to install it when it finds none. A profile opened here is an
+  ordinary `theca open` session: `theca status` and `theca close` see it, and it
+  stays open when the window is closed.
 - **Every error is shown**, as the library words it, in the status area at the
   bottom. So is the notice `theca` prints at every unlock: **this container has
   no rollback counter: an older copy of it would be accepted.**
@@ -137,7 +154,7 @@ bound to the widgets with [go-widgets/mvvmtk](https://github.com/go-widgets/mvvm
 
 | Package | |
 |---|---|
-| `internal/vault` | the library calls, mirroring `cmd/theca` |
+| `internal/vault` | the library calls, mirroring `cmd/theca`; the profile store, session client and spawner |
 | `internal/viewmodel` | all state and logic as Observables and Commands; imports no widget |
 | `internal/view` | the toolkit widgets, and their bindings to the ViewModel |
 | `main.go` | opens the window and wires the three together |

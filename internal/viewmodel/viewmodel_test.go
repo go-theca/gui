@@ -142,7 +142,7 @@ func (f *fakeService) Open(ctx context.Context, req vault.UnlockRequest) (Sessio
 // to drain the queue.
 func newApp(svc Service) (*App, *mvvm.Queue) {
 	q := mvvm.NewQueue(nil)
-	return New(svc, q, func(f func()) { f() }), q
+	return New(svc, Host{}, q, func(f func()) { f() }), q
 }
 
 func messages(a *App) string { return strings.Join(a.Messages.Slice(), "\n") }
@@ -515,7 +515,7 @@ func TestUnlockAsksForThePINOnlyWhenTheKeyDoes(t *testing.T) {
 		}
 	}
 	q := mvvm.NewQueue(nil)
-	a := New(svc, q, nil) // real goroutines
+	a := New(svc, Host{}, q, nil) // real goroutines
 	fillUnlock(a)
 	a.Unlock.UseKey.Set(true)
 	if a.PIN.Needed.Get() || a.PIN.Submit.CanExecute() {
@@ -659,7 +659,7 @@ func TestEnrollKey(t *testing.T) {
 	sess := &fakeSession{}
 	svc := &fakeService{sess: sess}
 	q := mvvm.NewQueue(nil)
-	a := New(svc, q, nil)
+	a := New(svc, Host{}, q, nil)
 	fillUnlock(a)
 	a.Unlock.Submit.Execute()
 	waitFor(t, q, func() bool { return a.Screen.Get() == ScreenContainer })

@@ -32,6 +32,19 @@ func main() {
 	}
 }
 
+// defaultHost is the seam the test replaces.
+var defaultHost = viewmodel.DefaultHost
+
+// build wires the application state to the library, the profile store, the
+// session client and the spawner.
+func build(q *mvvm.Queue) (*viewmodel.App, error) {
+	host, err := defaultHost()
+	if err != nil {
+		return nil, err
+	}
+	return viewmodel.New(viewmodel.Backend{V: vault.New()}, host, q, nil), nil
+}
+
 func run() error {
 	w, err := window.Open(window.Config{
 		Title:     "Theca",
@@ -44,6 +57,16 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	return serve(w)
+}
+
+// win is what serve needs of the window: the test passes a fake.
+type win interface {
+	Close() error
+	Run(root toolkit.Widget) error
+}
+
+func serve(w win) error {
 	defer w.Close()
 
 	// Background work posts its results here; the window wakes to draw a
@@ -59,7 +82,10 @@ func run() error {
 		toolkit.SetClipboard(c)
 	}
 
-	app := viewmodel.New(viewmodel.Backend{V: vault.New()}, q, nil)
+	app, err := build(q)
+	if err != nil {
+		return err
+	}
 	v := view.New(app, q)
 	defer v.Close()
 	// Last deferred, first run: the share stops and the container closes

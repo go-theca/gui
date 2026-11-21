@@ -70,6 +70,7 @@ func New(app *viewmodel.App, q *mvvm.Queue) *View {
 	v.stack.AddPage(viewmodel.ScreenUnlock, v.unlock())
 	v.stack.AddPage(viewmodel.ScreenContainer, v.container())
 	v.stack.AddPage(viewmodel.ScreenSlots, v.slots())
+	v.stack.AddPage(viewmodel.ScreenProfiles, v.profiles())
 	v.unbind = append(v.unbind, mvvm.BindTwoWay(app.Screen, v.stack.Visible(), v.touch))
 
 	// The status area: every error, notice and result, under whatever screen.
@@ -232,6 +233,30 @@ func (v *View) home() toolkit.Widget {
 		v.button("Unlock container", v.app.GoUnlock),
 		v.button("Create new container", v.app.GoCreate),
 	), buttonH)
+	p.AddFixed(buttons(v.button("My profiles...", v.app.GoProfiles)), buttonH)
+	return p
+}
+
+// profiles lists the profiles of containers.toml with their state, and opens and
+// closes the selected one.
+func (v *View) profiles() toolkit.Widget {
+	pr := v.app.Profiles
+	p := page()
+	p.AddFixed(v.title("Profiles"), titleH)
+	p.AddFixed(v.shown(pr.Empty), 2*msgRowH+2)
+	lines := toolkit.NewListBox(nil)
+	lines.RowHeight = rowH
+	v.unbind = append(v.unbind, mvvmtk.BindListItems(lines, pr.Lines, func(l string) string { return l }, v.touch))
+	v.unbind = append(v.unbind, mvvmtk.BindListSelection(lines, pr.Selected, v.touch))
+	p.AddFlex(lines, 1)
+	p.AddFixed(buttons(
+		v.button("Open", pr.Open),
+		v.button("Close", pr.Close),
+		v.button("Cancel", pr.Cancel),
+		v.button("Refresh", pr.Refresh),
+		v.button("Back", pr.Back),
+	), buttonH)
+	p.AddFixed(v.shown(v.app.KeyHint), msgRowH+2)
 	return p
 }
 

@@ -93,7 +93,8 @@ func run(dir string) error {
 			r.Repaint()
 		}
 	})
-	app := viewmodel.New(viewmodel.Backend{V: vault.New()}, q, nil)
+	// The livecheck never opens the profiles screen, so it needs no profile host.
+	app := viewmodel.New(viewmodel.Backend{V: vault.New()}, viewmodel.Host{}, q, nil)
 	v := view.New(app, q)
 
 	result := make(chan error, 1)

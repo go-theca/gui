@@ -37,6 +37,7 @@ const (
 	ScreenUnlock    = "unlock"
 	ScreenContainer = "container"
 	ScreenSlots     = "slots"
+	ScreenProfiles  = "profiles"
 )
 
 // What a security key is waiting for, as the values of App.KeyState.
@@ -138,7 +139,10 @@ type App struct {
 	// GoCreate and GoUnlock leave the Home screen.
 	GoCreate *mvvm.Command
 	GoUnlock *mvvm.Command
+	// GoProfiles shows the profiles of containers.toml.
+	GoProfiles *mvvm.Command
 
+	Profiles  *ProfilesVM
 	PIN       *PINPrompt
 	Create    *CreateVM
 	Unlock    *UnlockVM
@@ -148,7 +152,8 @@ type App struct {
 // New builds the application state. q is where results of background work are
 // posted; the host drains it on the UI goroutine. spawn runs background work;
 // nil means a new goroutine, and a test passes a function that runs it at once.
-func New(svc Service, q *mvvm.Queue, spawn func(func())) *App {
+// host is the machine's profiles and sessions.
+func New(svc Service, host Host, q *mvvm.Queue, spawn func(func())) *App {
 	if spawn == nil {
 		spawn = func(f func()) { go f() }
 	}
@@ -176,6 +181,8 @@ func New(svc Service, q *mvvm.Queue, spawn func(func())) *App {
 	a.Create = newCreateVM(a)
 	a.Unlock = newUnlockVM(a)
 	a.Container = newContainerVM(a)
+	a.Profiles = newProfilesVM(a, host)
+	a.GoProfiles = mvvm.NewCommand(a.Profiles.show, nil)
 
 	a.GoCreate = mvvm.NewCommand(func() {
 		a.Create.Path.Set(a.Path.Get())
